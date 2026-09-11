@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { isCompanyEmail } from '@/lib/companyEmail'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -15,8 +16,14 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+
+    if (!isCompanyEmail(email)) {
+      setError('개인 이메일(Gmail, Naver, Daum 등)로는 가입할 수 없어요. 회사 이메일을 입력해주세요.')
+      return
+    }
+
+    setLoading(true)
 
     const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
 
@@ -44,14 +51,16 @@ export default function SignupPage() {
         <h1 style={{ color: '#e94560', fontSize: '24px', marginBottom: '24px', textAlign: 'center' }}>다크톡 회원가입</h1>
         <form onSubmit={handleSignup}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ color: '#ccc', display: 'block', marginBottom: '8px' }}>이메일</label>
+            <label style={{ color: '#ccc', display: 'block', marginBottom: '8px' }}>회사 이메일</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              placeholder="name@company.com"
               style={{ width: '100%', padding: '10px', background: '#0f0f1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
             />
+            <p style={{ color: '#666', fontSize: '12px', marginTop: '6px' }}>개인 이메일(Gmail, Naver, Daum 등)은 사용할 수 없어요. 재직 중인 회사 이메일로 인증해주세요.</p>
           </div>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ color: '#ccc', display: 'block', marginBottom: '8px' }}>닉네임</label>
