@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { formatAuthor, type AuthorProfile } from "@/lib/authorDisplay";
 
 interface Post {
   id: string;
@@ -15,6 +16,7 @@ interface Post {
   comments_count: number;
   views_count: number;
   created_at: string;
+  profiles: AuthorProfile | null;
 }
 
 interface Comment {
@@ -22,6 +24,7 @@ interface Comment {
   post_id: string;
   content: string;
   created_at: string;
+  profiles: AuthorProfile | null;
 }
 
 function timeAgo(dateStr: string): string {
@@ -54,7 +57,11 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     async function load() {
       setLoading(true);
 
-      const { data: postData } = await supabase.from("posts").select("*").eq("id", id).single();
+      const { data: postData } = await supabase
+        .from("posts")
+        .select("*, profiles(nickname, company, job_title, is_verified)")
+        .eq("id", id)
+        .single();
 
       if (!postData) {
         setNotFound(true);
@@ -67,8 +74,8 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       supabase.rpc("increment_post_views", { p_post_id: id }).then();
 
       const [{ data: commentData }, { data: similarData }] = await Promise.all([
-        supabase.from("comments").select("*").eq("post_id", id).order("created_at", { ascending: true }),
-        supabase.from("posts").select("*").eq("category", postData.category).neq("id", id).limit(3),
+        supabase.from("comments").select("*, profiles(nickname, company, job_title, is_verified)").eq("post_id", id).order("created_at", { ascending: true }),
+        supabase.from("posts").select("*, profiles(nickname, company, job_title, is_verified)").eq("category", postData.category).neq("id", id).limit(3),
       ]);
 
       setComments(commentData ?? []);
@@ -159,7 +166,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             </h1>
 
             <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#a1a1aa", marginBottom: "24px" }}>
-              <span>익명</span>
+              <span>{formatAuthor(post.profiles)}</span>
               <span>·</span>
               <span>{timeAgo(post.created_at)}</span>
               <span>·</span>
@@ -244,7 +251,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       fontSize: "14px",
                     }}>👤</div>
                     <div>
-                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>익명</p>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>{formatAuthor(c.profiles)}</p>
                       <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>{timeAgo(c.created_at)}</p>
                     </div>
                   </div>
