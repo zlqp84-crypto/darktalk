@@ -2,12 +2,25 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
-import { mockPosts } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-export default function Home() {
-  const hotPosts = mockPosts.filter(p => p.isHot);
-  const allPosts = mockPosts;
+export const revalidate = 60; // 60초마다 재검증
+
+export default async function Home() {
+  // 최신 게시글 (최신순 50개)
+  const { data: posts } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  // HOT 게시글 (좋아요 많은 순 5개)
+  const { data: hotPosts } = await supabase
+    .from("posts")
+    .select("id, title, likes_count")
+    .order("likes_count", { ascending: false })
+    .limit(5);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -31,19 +44,19 @@ export default function Home() {
               <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "700" }}>🔥 지금 뜨는 글</h2>
               <Link href="/board" style={{ fontSize: "13px", color: "rgba(255,255,255,0.6)" }}>더보기 →</Link>
             </div>
-            {hotPosts.map((post, i) => (
+            {(hotPosts ?? []).map((post, i) => (
               <Link key={post.id} href={`/post/${post.id}`}>
                 <div style={{
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "8px 0",
-                  borderBottom: i < hotPosts.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
+                  borderBottom: i < (hotPosts?.length ?? 0) - 1 ? "1px solid rgba(255,255,255,0.1)" : "none",
                 }}>
                   <span style={{ color: "#e94560", fontWeight: "800", fontSize: "15px", minWidth: "20px" }}>{i + 1}</span>
                   <span style={{ fontSize: "14px", color: "rgba(255,255,255,0.9)", flex: 1,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {post.title}
                   </span>
-                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", flexShrink: 0 }}>❤️ {post.likes}</span>
+                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", flexShrink: 0 }}>❤️ {post.likes_count}</span>
                 </div>
               </Link>
             ))}
@@ -66,9 +79,15 @@ export default function Home() {
           </div>
 
           {/* 게시글 목록 */}
-          {allPosts.map(post => (
+          {(posts ?? []).map(post => (
             <PostCard key={post.id} post={post} />
           ))}
+
+          {(!posts || posts.length === 0) && (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: "#a1a1aa" }}>
+              <p style={{ fontSize: "15px" }}>아직 게시글이 없습니다.</p>
+            </div>
+          )}
         </main>
 
         {/* 우측 사이드바 */}
@@ -83,9 +102,9 @@ export default function Home() {
           }}>
             <h3 style={{ margin: "0 0 8px", fontSize: "15px", fontWeight: "700" }}>🔐 직장인 인증</h3>
             <p style={{ margin: "0 0 14px", fontSize: "13px", color: "#71717a", lineHeight: "1.6" }}>
-              회사 이메일 또는 건강보험 EDI로 재직을 인증하고 모든 채널에 참여하세요.
+              회사 이메일로 재직을 인증하고 모든 채널에 참여하세요.
             </p>
-            <Link href="/verify" style={{
+            <Link href="/signup" style={{
               display: "block",
               textAlign: "center",
               padding: "9px",
@@ -94,7 +113,7 @@ export default function Home() {
               borderRadius: "8px",
               fontSize: "14px",
               fontWeight: "600",
-            }}>인증하기</Link>
+            }}>가입하기</Link>
           </div>
 
           {/* 통계 */}
@@ -107,7 +126,7 @@ export default function Home() {
           }}>
             <h3 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: "700" }}>📊 오늘의 현황</h3>
             {[
-              { label: "오늘 새 글", value: "1,284" },
+              { label: "총 게시글", value: (posts?.length ?? 0).toLocaleString() },
               { label: "실시간 접속", value: "3,471" },
               { label: "누적 회원", value: "89,200" },
             ].map(stat => (
