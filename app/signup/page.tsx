@@ -8,6 +8,7 @@ import { isCompanyEmail } from '@/lib/companyEmail'
 
 export default function SignupPage() {
   const router = useRouter()
+  const [company, setCompany] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
@@ -25,7 +26,11 @@ export default function SignupPage() {
 
     setLoading(true)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { company, nickname } },
+    })
 
     if (signUpError) {
       setError(signUpError.message)
@@ -37,10 +42,11 @@ export default function SignupPage() {
       await supabase.from('profiles').insert({
         id: data.user.id,
         nickname,
+        company,
       })
     }
 
-    alert('회원가입 완료! 이메일 인증 후 로그인해주세요.')
+    alert(`${email}로 인증 메일을 보냈어요. 메일의 링크를 클릭해 인증을 완료해주세요.`)
     router.push('/login')
     setLoading(false)
   }
@@ -50,6 +56,17 @@ export default function SignupPage() {
       <div style={{ background: '#1a1a2e', padding: '40px', borderRadius: '12px', width: '100%', maxWidth: '400px' }}>
         <h1 style={{ color: '#e94560', fontSize: '24px', marginBottom: '24px', textAlign: 'center' }}>다크톡 회원가입</h1>
         <form onSubmit={handleSignup}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ color: '#ccc', display: 'block', marginBottom: '8px' }}>회사명</label>
+            <input
+              type="text"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              required
+              placeholder="예: 다크톡"
+              style={{ width: '100%', padding: '10px', background: '#0f0f1a', border: '1px solid #333', borderRadius: '6px', color: '#fff', boxSizing: 'border-box' }}
+            />
+          </div>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ color: '#ccc', display: 'block', marginBottom: '8px' }}>회사 이메일</label>
             <input
@@ -99,4 +116,3 @@ export default function SignupPage() {
     </div>
   )
 }
-export {}

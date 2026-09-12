@@ -1,23 +1,143 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState, use } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
-import { mockPosts } from "@/lib/mockData";
-import { use } from "react";
+import { supabase } from "@/lib/supabase";
 
-const mockComments = [
-  { id: 1, author: "익명의 마케터", company: "스타트업", time: "5분 전", content: "저도 같은 경험 있어요. 저는 팀장한테 직접 1:1로 이야기했는데 오히려 더 어색해졌어요... 상황이 쉽지 않네요.", likes: 24 },
-  { id: 2, author: "익명의 개발자", company: "IT기업", time: "12분 전", content: "다음 번엔 아이디어 제안 전에 미리 메일이나 슬랙으로 기록을 남겨두세요. 그러면 나중에 증거가 됩니다.", likes: 87 },
-  { id: 3, author: "익명의 기획자", company: "대기업", time: "34분 전", content: "대기업에서 이런 일은 일상다반사예요... 안타깝지만 위로가 되셨으면 해요. 이직을 고려해보시는 건 어떨까요?", likes: 45 },
-];
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  likes_count: number;
+  comments_count: number;
+  views_count: number;
+  created_at: string;
+}
+
+interface Comment {
+  id: string;
+  post_id: string;
+  content: string;
+  created_at: string;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "방금 전";
+  if (min < 60) return `${min}분 전`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}시간 전`;
+  const day = Math.floor(hour / 24);
+  if (day < 7) return `${day}일 전`;
+  return new Date(dateStr).toLocaleDateString("ko-KR");
+}
 
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const post = mockPosts.find(p => p.id === Number(id)) || mockPosts[0];
+  const router = useRouter();
+
+  const [post, setPost] = useState<Post | null>(null);
+  const [similarPosts, setSimilarPosts] = useState<Post[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
   const [liked, setLiked] = useState(false);
   const [comment, setComment] = useState("");
-  const [commentLikes, setCommentLikes] = useState<Record<number, boolean>>({});
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+
+      const { data: postData } = await supabase.from("posts").select("*").eq("id", id).single();
+
+      if (!postData) {
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
+      setPost(postData);
+
+      const nextViews = (postData.views_count ?? 0) + 1;
+      supabase.rpc("increment_post_views", { p_post_id: id }).then();
+
+      const [{ data: commentData }, { data: similarData }] = await Promise.all([
+        supabase.from("comments").select("*").eq("post_id", id).order("created_at", { ascending: true }),
+        supabase.from("posts").select("*").eq("category", postData.category).neq("id", id).limit(3),
+      ]);
+
+      setComments(commentData ?? []);
+      setSimilarPosts(similarData ?? []);
+      setPost({ ...postData, views_count: nextViews });
+      setLoading(false);
+    }
+    load();
+  }, [id]);
+
+  const handleLike = async () => {
+    if (!post) return;
+    const nextLiked = !liked;
+    const nextCount = post.likes_count + (nextLiked ? 1 : -1);
+    setLiked(nextLiked);
+    setPost({ ...post, likes_count: nextCount });
+    await supabase.rpc("increment_post_likes", { p_post_id: post.id, p_delta: nextLiked ? 1 : -1 });
+  };
+
+  const handleCommentSubmit = async () => {
+    if (!comment.trim() || !post) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      alert("로그인 후 댓글을 작성할 수 있어요.");
+      router.push("/login");
+      return;
+    }
+
+    setCommentSubmitting(true);
+    const { data, error } = await supabase
+      .from("comments")
+      .insert({ post_id: post.id, user_id: userData.user.id, content: comment.trim() })
+      .select("*")
+      .single();
+    setCommentSubmitting(false);
+
+    if (error || !data) {
+      alert("댓글 등록에 실패했어요.");
+      return;
+    }
+
+    setComments(prev => [...prev, data]);
+    setComment("");
+
+    const nextCommentsCount = post.comments_count + 1;
+    setPost({ ...post, comments_count: nextCommentsCount });
+    await supabase.rpc("increment_post_comments_count", { p_post_id: post.id, p_delta: 1 });
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1, textAlign: "center", padding: "80px 20px", color: "#a1a1aa" }}>불러오는 중...</main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (notFound || !post) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1, textAlign: "center", padding: "80px 20px", color: "#a1a1aa" }}>게시글을 찾을 수 없어요.</main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -32,7 +152,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             {/* 카테고리 */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               <span style={{ fontSize: "12px", fontWeight: "600", background: "#f0f0ff", color: "#1a1a2e", padding: "3px 10px", borderRadius: "20px" }}>{post.category}</span>
-              {post.company && <span style={{ fontSize: "12px", color: "#71717a", background: "#f4f4f5", padding: "3px 10px", borderRadius: "20px" }}>{post.company}</span>}
             </div>
 
             <h1 style={{ margin: "0 0 16px", fontSize: "20px", fontWeight: "800", lineHeight: "1.4", color: "#18181b" }}>
@@ -42,21 +161,19 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#a1a1aa", marginBottom: "24px" }}>
               <span>익명</span>
               <span>·</span>
-              <span>{post.time}</span>
+              <span>{timeAgo(post.created_at)}</span>
               <span>·</span>
-              <span>조회 1,284</span>
+              <span>조회 {post.views_count.toLocaleString()}</span>
             </div>
 
-            <div style={{ fontSize: "15px", lineHeight: "1.8", color: "#3f3f46", borderTop: "1px solid #f4f4f5", paddingTop: "20px" }}>
-              <p>{post.preview}</p>
-              <p>여러분들의 경험이나 조언을 듣고 싶어요. 비슷한 상황을 겪으신 분들 계신가요? 어떻게 대처하셨는지 공유해주시면 정말 감사하겠습니다.</p>
-              <p>회사 분위기상 HR에 신고하기도 어렵고... 정말 막막한 상황입니다.</p>
+            <div style={{ fontSize: "15px", lineHeight: "1.8", color: "#3f3f46", borderTop: "1px solid #f4f4f5", paddingTop: "20px", whiteSpace: "pre-wrap" }}>
+              {post.content}
             </div>
 
             {/* 액션 버튼 */}
             <div style={{ display: "flex", gap: "10px", marginTop: "24px", borderTop: "1px solid #f4f4f5", paddingTop: "20px" }}>
               <button
-                onClick={() => setLiked(!liked)}
+                onClick={handleLike}
                 style={{
                   display: "flex", alignItems: "center", gap: "6px",
                   padding: "9px 18px", borderRadius: "20px",
@@ -65,14 +182,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                   color: liked ? "#e94560" : "#71717a",
                   fontSize: "14px", fontWeight: "600", cursor: "pointer",
                 }}>
-                ❤️ {post.likes + (liked ? 1 : 0)}
+                ❤️ {post.likes_count}
               </button>
               <button style={{
                 display: "flex", alignItems: "center", gap: "6px",
                 padding: "9px 18px", borderRadius: "20px",
                 border: "1px solid #e4e4e7", background: "#fff",
                 color: "#71717a", fontSize: "14px", cursor: "pointer",
-              }}>💬 {post.comments}</button>
+              }}>💬 {comments.length}</button>
               <button style={{
                 display: "flex", alignItems: "center", gap: "6px",
                 padding: "9px 18px", borderRadius: "20px",
@@ -85,7 +202,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* 댓글 섹션 */}
           <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: "14px", padding: "24px" }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: "16px", fontWeight: "700" }}>댓글 {mockComments.length}개</h3>
+            <h3 style={{ margin: "0 0 20px", fontSize: "16px", fontWeight: "700" }}>댓글 {comments.length}개</h3>
 
             {/* 댓글 쓰기 */}
             <div style={{ border: "1px solid #e4e4e7", borderRadius: "10px", padding: "14px", marginBottom: "24px" }}>
@@ -101,16 +218,22 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                 }}
               />
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
-                <button style={{
-                  padding: "8px 20px", background: "#1a1a2e", color: "#fff",
-                  border: "none", borderRadius: "6px", fontSize: "13px",
-                  fontWeight: "600", cursor: "pointer",
-                }}>등록</button>
+                <button
+                  onClick={handleCommentSubmit}
+                  disabled={commentSubmitting || !comment.trim()}
+                  style={{
+                    padding: "8px 20px", background: "#1a1a2e", color: "#fff",
+                    border: "none", borderRadius: "6px", fontSize: "13px",
+                    fontWeight: "600", cursor: "pointer",
+                  }}>{commentSubmitting ? "등록 중..." : "등록"}</button>
               </div>
             </div>
 
             {/* 댓글 목록 */}
-            {mockComments.map(c => (
+            {comments.length === 0 && (
+              <p style={{ textAlign: "center", color: "#a1a1aa", fontSize: "13px", padding: "20px 0" }}>첫 댓글을 남겨보세요!</p>
+            )}
+            {comments.map(c => (
               <div key={c.id} style={{ padding: "16px 0", borderBottom: "1px solid #f4f4f5" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -121,22 +244,13 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       fontSize: "14px",
                     }}>👤</div>
                     <div>
-                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>{c.author}</p>
-                      <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>{c.company} · {c.time}</p>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>익명</p>
+                      <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>{timeAgo(c.created_at)}</p>
                     </div>
                   </div>
                   <button style={{ background: "none", border: "none", color: "#a1a1aa", fontSize: "12px", cursor: "pointer" }}>신고</button>
                 </div>
-                <p style={{ margin: "0 0 10px", fontSize: "14px", color: "#3f3f46", lineHeight: "1.6" }}>{c.content}</p>
-                <button
-                  onClick={() => setCommentLikes(prev => ({ ...prev, [c.id]: !prev[c.id] }))}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    fontSize: "13px", color: commentLikes[c.id] ? "#e94560" : "#a1a1aa",
-                    padding: 0,
-                  }}>
-                  ❤️ {c.likes + (commentLikes[c.id] ? 1 : 0)}
-                </button>
+                <p style={{ margin: 0, fontSize: "14px", color: "#3f3f46", lineHeight: "1.6" }}>{c.content}</p>
               </div>
             ))}
           </div>
@@ -145,11 +259,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         <aside style={{ width: "280px", flexShrink: 0, padding: "24px 16px" }}>
           <div style={{ background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px", padding: "20px" }}>
             <h3 style={{ margin: "0 0 14px", fontSize: "15px", fontWeight: "700" }}>비슷한 글</h3>
-            {mockPosts.filter(p => p.id !== post.id).slice(0, 3).map(p => (
+            {similarPosts.length === 0 && (
+              <p style={{ fontSize: "12px", color: "#a1a1aa" }}>비슷한 글이 없어요.</p>
+            )}
+            {similarPosts.map(p => (
               <a key={p.id} href={`/post/${p.id}`} style={{ display: "block", padding: "10px 0", borderBottom: "1px solid #f4f4f5", textDecoration: "none" }}>
                 <p style={{ margin: "0 0 4px", fontSize: "13px", fontWeight: "500", color: "#18181b", lineHeight: "1.4",
                   overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{p.title}</p>
-                <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>❤️ {p.likes} · 💬 {p.comments}</p>
+                <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>❤️ {p.likes_count}</p>
               </a>
             ))}
           </div>

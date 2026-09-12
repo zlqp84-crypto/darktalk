@@ -1,14 +1,87 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { supabase } from "@/lib/supabase";
 
 const categories = ["대기업·중견기업", "중소기업", "스타트업", "프리랜서", "취업·이직", "급여·연봉", "직장생활", "자유게시판"];
 
 export default function WritePage() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        alert("로그인 후 이용할 수 있어요.");
+        router.push("/login");
+        return;
+      }
+      setCheckingAuth(false);
+    });
+  }, [router]);
+
+  const handleSubmit = async () => {
+    setError("");
+
+    if (!category) {
+      setError("채널을 선택해주세요.");
+      return;
+    }
+    if (!title.trim()) {
+      setError("제목을 입력해주세요.");
+      return;
+    }
+    if (!content.trim()) {
+      setError("내용을 입력해주세요.");
+      return;
+    }
+
+    setSubmitting(true);
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      alert("로그인 후 이용할 수 있어요.");
+      router.push("/login");
+      return;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from("posts")
+      .insert({
+        title: title.trim(),
+        content: content.trim(),
+        category,
+        user_id: userData.user.id,
+      })
+      .select("id")
+      .single();
+
+    setSubmitting(false);
+
+    if (insertError || !data) {
+      setError(insertError?.message ?? "게시글 등록에 실패했어요.");
+      return;
+    }
+
+    router.push(`/post/${data.id}`);
+  };
+
+  if (checkingAuth) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1, textAlign: "center", padding: "80px 20px", color: "#a1a1aa" }}>확인 중...</main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -75,10 +148,16 @@ export default function WritePage() {
             </p>
           </div>
 
+          {error && <p style={{ color: "#e94560", fontSize: "13px", marginBottom: "16px" }}>{error}</p>}
+
           {/* 버튼 */}
           <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-            <button style={{ padding: "11px 24px", background: "#f4f4f5", color: "#52525b", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }}>취소</button>
-            <button style={{ padding: "11px 28px", background: "#1a1a2e", color: "#fff", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>게시하기</button>
+            <button onClick={() => router.back()} style={{ padding: "11px 24px", background: "#f4f4f5", color: "#52525b", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }}>취소</button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              style={{ padding: "11px 28px", background: "#1a1a2e", color: "#fff", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}
+            >{submitting ? "게시 중..." : "게시하기"}</button>
           </div>
         </div>
       </main>
