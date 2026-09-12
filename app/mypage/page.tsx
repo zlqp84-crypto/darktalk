@@ -3,8 +3,6 @@ import { useState } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
-import PostCard from "@/components/PostCard";
-import { mockPosts } from "@/lib/mockData";
 import Link from "next/link";
 
 type Tab = "posts" | "comments" | "likes" | "settings";
@@ -102,10 +100,15 @@ export default function MyPage() {
 
           {/* 내 게시글 */}
           {tab === "posts" && (
-            <div>
-              {mockPosts.slice(0, 3).map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+            <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>📝</div>
+              <p style={{ fontSize: "15px", fontWeight: "600", color: "#3f3f46" }}>아직 작성한 게시글이 없어요</p>
+              <p style={{ fontSize: "13px", color: "#a1a1aa", marginTop: "4px" }}>첫 번째 글을 작성해보세요!</p>
+              <a href="/write" style={{
+                display: "inline-block", marginTop: "16px", padding: "10px 24px",
+                background: "#1a1a2e", color: "#fff", borderRadius: "8px",
+                fontSize: "14px", fontWeight: "600",
+              }}>✏️ 글쓰기</a>
             </div>
           )}
 
@@ -131,10 +134,10 @@ export default function MyPage() {
 
           {/* 좋아요한 글 */}
           {tab === "likes" && (
-            <div>
-              {mockPosts.slice(0, 2).map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+            <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>❤️</div>
+              <p style={{ fontSize: "15px", fontWeight: "600", color: "#3f3f46" }}>좋아요한 글이 없어요</p>
+              <p style={{ fontSize: "13px", color: "#a1a1aa", marginTop: "4px" }}>마음에 드는 글에 좋아요를 눌러보세요</p>
             </div>
           )}
 

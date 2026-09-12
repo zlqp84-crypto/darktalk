@@ -1,10 +1,19 @@
 "use client";
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
-import { mockPosts } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase";
+
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  likes_count: number;
+  created_at: string;
+}
 
 const categoryMap: Record<string, { label: string; icon: string; desc: string }> = {
   conglomerate: { label: "대기업·중견기업", icon: "🏢", desc: "대기업·중견기업 재직자들의 솔직한 이야기" },
@@ -23,11 +32,39 @@ export default function BoardPage({ params }: { params: Promise<{ category: stri
   const { category } = use(params);
   const [sort, setSort] = useState(0);
   const [search, setSearch] = useState("");
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const info = categoryMap[category] ?? { label: "전체 채널", icon: "🏠", desc: "모든 채널의 게시글" };
 
-  const filtered = mockPosts.filter(p =>
-    search === "" || p.title.includes(search) || p.preview.includes(search)
+  useEffect(() => {
+    async function fetchPosts() {
+      setLoading(true);
+      let query = supabase.from("posts").select("*");
+
+      // 카테고리 필터 (전체는 필터 없음)
+      if (categoryMap[category]) {
+        query = query.eq("category", categoryMap[category].label);
+      }
+
+      // 정렬
+      if (sort === 0) {
+        query = query.order("created_at", { ascending: false });
+      } else if (sort === 1) {
+        query = query.order("likes_count", { ascending: false });
+      } else {
+        query = query.order("created_at", { ascending: false });
+      }
+
+      const { data } = await query.limit(50);
+      setPosts(data ?? []);
+      setLoading(false);
+    }
+    fetchPosts();
+  }, [category, sort]);
+
+  const filtered = posts.filter(p =>
+    search === "" || p.title.includes(search) || p.content.includes(search)
   );
 
   return (
@@ -81,7 +118,7 @@ export default function BoardPage({ params }: { params: Promise<{ category: stri
             marginBottom: "16px", fontSize: "13px",
           }}>
             {[
-              { label: "총 게시글", value: "12,847" },
+              { label: "총 게시글", value: posts.length.toLocaleString() },
               { label: "오늘 새 글", value: "284" },
               { label: "지금 접속", value: "1,203" },
             ].map(stat => (
@@ -114,25 +151,36 @@ export default function BoardPage({ params }: { params: Promise<{ category: stri
             ))}
           </div>
 
+          {/* 로딩 */}
+          {loading && (
+            <div style={{ textAlign: "center", padding: "40px", color: "#a1a1aa", fontSize: "14px" }}>
+              불러오는 중...
+            </div>
+          )}
+
           {/* 게시글 없을 때 */}
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <div style={{
               textAlign: "center", padding: "60px 20px",
               background: "#fff", border: "1px solid #e4e4e7", borderRadius: "12px",
             }}>
               <div style={{ fontSize: "40px", marginBottom: "12px" }}>🔍</div>
-              <p style={{ fontSize: "15px", fontWeight: "600", color: "#3f3f46" }}>검색 결과가 없어요</p>
-              <p style={{ fontSize: "13px", color: "#a1a1aa", marginTop: "4px" }}>다른 키워드로 검색해보세요</p>
+              <p style={{ fontSize: "15px", fontWeight: "600", color: "#3f3f46" }}>
+                {search ? "검색 결과가 없어요" : "아직 게시글이 없어요"}
+              </p>
+              <p style={{ fontSize: "13px", color: "#a1a1aa", marginTop: "4px" }}>
+                {search ? "다른 키워드로 검색해보세요" : "첫 번째 글을 작성해보세요!"}
+              </p>
             </div>
           )}
 
           {/* 게시글 목록 */}
-          {filtered.map(post => (
+          {!loading && filtered.map(post => (
             <PostCard key={post.id} post={post} />
           ))}
 
           {/* 더보기 */}
-          {filtered.length > 0 && (
+          {!loading && filtered.length > 0 && (
             <div style={{ textAlign: "center", marginTop: "8px" }}>
               <button style={{
                 padding: "12px 32px",
