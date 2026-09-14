@@ -32,6 +32,7 @@ interface Profile {
 }
 
 type Tab = "posts" | "comments" | "users";
+type Gate = "checking" | "not-admin" | "need-enroll" | "need-verify" | "unlocked";
 
 const cardStyle: React.CSSProperties = {
   background: "#fff",
@@ -51,10 +52,28 @@ const btnDanger: React.CSSProperties = {
   cursor: "pointer",
 };
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px",
+  border: "1px solid #e4e4e7",
+  borderRadius: "6px",
+  fontSize: "14px",
+  boxSizing: "border-box",
+};
+
 export default function AdminPage() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [allowed, setAllowed] = useState(false);
+  const [gate, setGate] = useState<Gate>("checking");
+  const [gateError, setGateError] = useState("");
+
+  // MFA enrollment (first-time setup)
+  const [qrCode, setQrCode] = useState("");
+  const [enrollFactorId, setEnrollFactorId] = useState("");
+
+  // MFA verify (returning admin)
+  const [factorId, setFactorId] = useState("");
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   const [tab, setTab] = useState<Tab>("posts");
   const [stats, setStats] = useState({ posts: 0, comments: 0, users: 0 });
@@ -64,12 +83,13 @@ export default function AdminPage() {
   const [loadingTab, setLoadingTab] = useState(true);
 
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkAccess() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
         router.push("/login");
         return;
       }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("is_admin")
@@ -77,18 +97,85 @@ export default function AdminPage() {
         .single();
 
       if (!profile?.is_admin) {
-        setAllowed(false);
-        setChecking(false);
+        setGate("not-admin");
         return;
       }
-      setAllowed(true);
-      setChecking(false);
+
+      const { data: level } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (level?.currentLevel === "aal2") {
+        setGate("unlocked");
+        return;
+      }
+
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const verifiedTotp = factorsData?.totp.find(f => f.status === "verified");
+
+      if (verifiedTotp) {
+        setFactorId(verifiedTotp.id);
+        setGate("need-verify");
+        return;
+      }
+
+      // 최초 설정: QR 코드 발급
+      const { data: enrollData, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+      if (error || !enrollData) {
+        setGateError(error?.message ?? "OTP 설정에 실패했어요.");
+        setGate("not-admin");
+        return;
+      }
+      setQrCode(enrollData.totp.qr_code);
+      setEnrollFactorId(enrollData.id);
+      setGate("need-enroll");
     }
-    checkAdmin();
+    checkAccess();
   }, [router]);
 
+  const handleVerifyEnroll = async () => {
+    setVerifying(true);
+    setGateError("");
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: enrollFactorId });
+    if (challengeError || !challenge) {
+      setGateError(challengeError?.message ?? "인증에 실패했어요.");
+      setVerifying(false);
+      return;
+    }
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: enrollFactorId,
+      challengeId: challenge.id,
+      code,
+    });
+    setVerifying(false);
+    if (verifyError) {
+      setGateError("코드가 올바르지 않아요. 다시 확인해주세요.");
+      return;
+    }
+    setGate("unlocked");
+  };
+
+  const handleVerifyLogin = async () => {
+    setVerifying(true);
+    setGateError("");
+    const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+    if (challengeError || !challenge) {
+      setGateError(challengeError?.message ?? "인증에 실패했어요.");
+      setVerifying(false);
+      return;
+    }
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId,
+      challengeId: challenge.id,
+      code,
+    });
+    setVerifying(false);
+    if (verifyError) {
+      setGateError("코드가 올바르지 않아요. 다시 확인해주세요.");
+      return;
+    }
+    setGate("unlocked");
+  };
+
   useEffect(() => {
-    if (!allowed) return;
+    if (gate !== "unlocked") return;
 
     async function loadStats() {
       const [{ count: postsCount }, { count: commentsCount }, { count: usersCount }] = await Promise.all([
@@ -99,10 +186,10 @@ export default function AdminPage() {
       setStats({ posts: postsCount ?? 0, comments: commentsCount ?? 0, users: usersCount ?? 0 });
     }
     loadStats();
-  }, [allowed]);
+  }, [gate]);
 
   useEffect(() => {
-    if (!allowed) return;
+    if (gate !== "unlocked") return;
 
     async function loadTab() {
       setLoadingTab(true);
@@ -131,7 +218,7 @@ export default function AdminPage() {
       setLoadingTab(false);
     }
     loadTab();
-  }, [tab, allowed]);
+  }, [tab, gate]);
 
   const handleDeletePost = async (id: string) => {
     if (!confirm("이 게시글과 딸린 댓글을 전부 삭제할까요?")) return;
@@ -155,7 +242,7 @@ export default function AdminPage() {
     setStats(prev => ({ ...prev, comments: prev.comments - 1 }));
   };
 
-  if (checking) {
+  if (gate === "checking") {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <Header />
@@ -165,12 +252,71 @@ export default function AdminPage() {
     );
   }
 
-  if (!allowed) {
+  if (gate === "not-admin") {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
         <Header />
         <main style={{ flex: 1, textAlign: "center", padding: "80px 20px", color: "#a1a1aa" }}>
-          관리자 권한이 없어요.
+          {gateError || "관리자 권한이 없어요."}
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (gate === "need-enroll") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
+          <div style={{ ...cardStyle, maxWidth: "360px", width: "100%", textAlign: "center" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: "16px", fontWeight: "800" }}>🔐 2단계 인증 최초 설정</h2>
+            <p style={{ fontSize: "13px", color: "#71717a", margin: "0 0 16px" }}>
+              Google Authenticator(또는 Authy 등)로 아래 QR코드를 스캔한 뒤, 앱에 뜨는 6자리 코드를 입력하세요.
+            </p>
+            {qrCode && <img src={qrCode} alt="OTP QR" style={{ width: "180px", height: "180px", margin: "0 auto 16px" }} />}
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="6자리 코드"
+              inputMode="numeric"
+              style={{ ...inputStyle, textAlign: "center", letterSpacing: "4px", fontSize: "18px", marginBottom: "10px" }}
+            />
+            {gateError && <p style={{ color: "#e94560", fontSize: "13px", marginBottom: "10px" }}>{gateError}</p>}
+            <button
+              onClick={handleVerifyEnroll}
+              disabled={verifying || code.length < 6}
+              style={{ width: "100%", padding: "11px", background: "#1a1a2e", color: "#fff", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}
+            >{verifying ? "확인 중..." : "설정 완료"}</button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (gate === "need-verify") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header />
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
+          <div style={{ ...cardStyle, maxWidth: "360px", width: "100%", textAlign: "center" }}>
+            <h2 style={{ margin: "0 0 8px", fontSize: "16px", fontWeight: "800" }}>🔐 인증 코드 입력</h2>
+            <p style={{ fontSize: "13px", color: "#71717a", margin: "0 0 16px" }}>Authenticator 앱에 뜨는 6자리 코드를 입력하세요.</p>
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="6자리 코드"
+              inputMode="numeric"
+              style={{ ...inputStyle, textAlign: "center", letterSpacing: "4px", fontSize: "18px", marginBottom: "10px" }}
+            />
+            {gateError && <p style={{ color: "#e94560", fontSize: "13px", marginBottom: "10px" }}>{gateError}</p>}
+            <button
+              onClick={handleVerifyLogin}
+              disabled={verifying || code.length < 6}
+              style={{ width: "100%", padding: "11px", background: "#1a1a2e", color: "#fff", border: "none", borderRadius: "8px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}
+            >{verifying ? "확인 중..." : "확인"}</button>
+          </div>
         </main>
         <Footer />
       </div>
