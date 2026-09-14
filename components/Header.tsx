@@ -8,12 +8,14 @@ export default function Header() {
   const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
   const [nickname, setNickname] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     async function loadProfile(userId: string) {
-      const { data } = await supabase.from("profiles").select("nickname").eq("id", userId).single();
+      const { data } = await supabase.from("profiles").select("nickname, is_admin").eq("id", userId).single();
       setNickname(data?.nickname ?? "회원");
+      setIsAdmin(data?.is_admin ?? false);
     }
 
     supabase.auth.getUser().then(({ data }) => {
@@ -26,6 +28,7 @@ export default function Header() {
         loadProfile(session.user.id);
       } else {
         setNickname(null);
+        setIsAdmin(false);
       }
     });
 
@@ -35,6 +38,7 @@ export default function Header() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setNickname(null);
+    setIsAdmin(false);
     router.push("/");
     router.refresh();
   };
@@ -109,6 +113,16 @@ export default function Header() {
       <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
         {checkingAuth ? null : nickname ? (
           <>
+            {isAdmin && (
+              <Link href="/admin" style={{
+                padding: "7px 14px",
+                borderRadius: "6px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#fff",
+                background: "rgba(233,69,96,0.25)",
+              }}>🛠️ 관리자</Link>
+            )}
             <Link href="/mypage" style={{
               padding: "7px 14px",
               borderRadius: "6px",
