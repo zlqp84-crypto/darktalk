@@ -1,9 +1,43 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function Header() {
+  const router = useRouter();
   const [searchValue, setSearchValue] = useState("");
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile(userId: string) {
+      const { data } = await supabase.from("profiles").select("nickname").eq("id", userId).single();
+      setNickname(data?.nickname ?? "회원");
+    }
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) loadProfile(data.user.id);
+      setCheckingAuth(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadProfile(session.user.id);
+      } else {
+        setNickname(null);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setNickname(null);
+    router.push("/");
+    router.refresh();
+  };
 
   return (
     <header style={{
@@ -73,22 +107,46 @@ export default function Header() {
 
       {/* 오른쪽 버튼들 */}
       <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
-        <Link href="/login" style={{
-          padding: "7px 16px",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "600",
-          color: "#fff",
-          border: "1px solid rgba(255,255,255,0.3)",
-        }}>로그인</Link>
-        <Link href="/signup" style={{
-          padding: "7px 16px",
-          borderRadius: "6px",
-          fontSize: "14px",
-          fontWeight: "600",
-          background: "#e94560",
-          color: "#fff",
-        }}>회원가입</Link>
+        {checkingAuth ? null : nickname ? (
+          <>
+            <Link href="/mypage" style={{
+              padding: "7px 14px",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#fff",
+            }}>👤 {nickname}</Link>
+            <button onClick={handleLogout} style={{
+              padding: "7px 16px",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#fff",
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.3)",
+              cursor: "pointer",
+            }}>로그아웃</button>
+          </>
+        ) : (
+          <>
+            <Link href="/login" style={{
+              padding: "7px 16px",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}>로그인</Link>
+            <Link href="/signup" style={{
+              padding: "7px 16px",
+              borderRadius: "6px",
+              fontSize: "14px",
+              fontWeight: "600",
+              background: "#e94560",
+              color: "#fff",
+            }}>회원가입</Link>
+          </>
+        )}
       </div>
     </header>
   );
