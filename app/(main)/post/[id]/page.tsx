@@ -16,6 +16,7 @@ interface Post {
   comments_count: number;
   views_count: number;
   created_at: string;
+  image_urls: string[] | null;
   profiles: AuthorProfile | null;
 }
 
@@ -176,6 +177,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             <div style={{ fontSize: "15px", lineHeight: "1.8", color: "#3f3f46", borderTop: "1px solid #f4f4f5", paddingTop: "20px", whiteSpace: "pre-wrap" }}>
               {post.content}
             </div>
+
+            {post.image_urls && post.image_urls.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                {post.image_urls.map((url, i) => (
+                  <img key={i} src={url} alt="" style={{ maxWidth: "100%", borderRadius: "10px", border: "1px solid #f4f4f5" }} />
+                ))}
+              </div>
+            )}
 
             {/* 액션 버튼 */}
             <div style={{ display: "flex", gap: "10px", marginTop: "24px", borderTop: "1px solid #f4f4f5", paddingTop: "20px" }}>

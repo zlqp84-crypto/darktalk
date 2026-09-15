@@ -7,14 +7,56 @@ import { supabase } from "@/lib/supabase";
 
 const categories = ["대기업·중견기업", "중소기업", "스타트업", "프리랜서", "취업·이직", "급여·연봉", "직장생활", "자유게시판"];
 
+const MAX_IMAGES = 5;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+interface ImageDraft {
+  file: File;
+  previewUrl: string;
+}
+
 export default function WritePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("");
+  const [images, setImages] = useState<ImageDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
+
+  const handleFilesSelected = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const incoming = Array.from(fileList);
+    setError("");
+
+    const accepted: ImageDraft[] = [];
+    for (const file of incoming) {
+      if (images.length + accepted.length >= MAX_IMAGES) {
+        setError(`사진은 최대 ${MAX_IMAGES}장까지 첨부할 수 있어요.`);
+        break;
+      }
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        setError("JPG, PNG, WEBP, GIF 형식의 사진만 첨부할 수 있어요.");
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        setError(`사진 1장당 최대 5MB까지 첨부할 수 있어요. (${file.name})`);
+        continue;
+      }
+      accepted.push({ file, previewUrl: URL.createObjectURL(file) });
+    }
+
+    if (accepted.length > 0) setImages(prev => [...prev, ...accepted]);
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -52,6 +94,20 @@ export default function WritePage() {
       return;
     }
 
+    const imageUrls: string[] = [];
+    for (const img of images) {
+      const ext = img.file.name.split(".").pop();
+      const path = `${userData.user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("post-images").upload(path, img.file);
+      if (uploadError) {
+        setSubmitting(false);
+        setError("사진 업로드에 실패했어요: " + uploadError.message);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("post-images").getPublicUrl(path);
+      imageUrls.push(urlData.publicUrl);
+    }
+
     const { data, error: insertError } = await supabase
       .from("posts")
       .insert({
@@ -59,6 +115,7 @@ export default function WritePage() {
         content: content.trim(),
         category,
         user_id: userData.user.id,
+        image_urls: imageUrls,
       })
       .select("id")
       .single();
@@ -138,6 +195,47 @@ export default function WritePage() {
                 boxSizing: "border-box",
               }}
             />
+          </div>
+
+          {/* 사진 첨부 */}
+          <div style={{ marginBottom: "20px" }}>
+            <label style={{ fontSize: "13px", fontWeight: "600", color: "#3f3f46", display: "block", marginBottom: "10px" }}>
+              사진 첨부 ({images.length}/{MAX_IMAGES})
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {images.map((img, i) => (
+                <div key={i} style={{ position: "relative", width: "80px", height: "80px" }}>
+                  <img src={img.previewUrl} alt="" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "8px", border: "1px solid #e4e4e7" }} />
+                  <button
+                    onClick={() => removeImage(i)}
+                    style={{
+                      position: "absolute", top: "-6px", right: "-6px",
+                      width: "20px", height: "20px", borderRadius: "50%",
+                      background: "#1a1a2e", color: "#fff", border: "none",
+                      fontSize: "12px", cursor: "pointer", lineHeight: "20px",
+                    }}
+                  >✕</button>
+                </div>
+              ))}
+              {images.length < MAX_IMAGES && (
+                <label style={{
+                  width: "80px", height: "80px", borderRadius: "8px",
+                  border: "1px dashed #d4d4d8", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", color: "#a1a1aa", fontSize: "24px",
+                }}>
+                  +
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    multiple
+                    onChange={e => { handleFilesSelected(e.target.files); e.target.value = ""; }}
+                    style={{ display: "none" }}
+                  />
+                </label>
+              )}
+            </div>
+            <p style={{ fontSize: "11px", color: "#a1a1aa", margin: "8px 0 0" }}>JPG·PNG·WEBP·GIF, 장당 최대 5MB, 최대 {MAX_IMAGES}장</p>
           </div>
 
           {/* 익명 안내 */}
