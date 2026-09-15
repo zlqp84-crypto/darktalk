@@ -242,7 +242,7 @@ export default function WritePage() {
           <div style={{ background: "#f4f4f5", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", display: "flex", gap: "8px", alignItems: "center" }}>
             <span>🔒</span>
             <p style={{ margin: 0, fontSize: "12px", color: "#71717a" }}>
-              모든 게시글은 <strong>익명</strong>으로 게시됩니다. 작성자의 신원은 운영자도 확인할 수 없어요.
+              모든 게시글은 <strong>익명</strong>으로 게시됩니다. 다른 이용자에게는 작성자 신원이 공개되지 않아요. (단, 법원 영장 등 적법한 절차에 따라 계정 정보가 제공될 수 있습니다)
             </p>
           </div>
 

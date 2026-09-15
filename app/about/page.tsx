@@ -46,7 +46,7 @@ export default function AboutPage() {
           <h2 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "24px", color: "#1a1a2e" }}>DarkTalk의 특징</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
             {[
-              { icon: "🔒", title: "완전한 익명성", desc: "작성자 신원은 운영자도 확인할 수 없습니다. 진짜 익명이에요." },
+              { icon: "🔒", title: "이용자 간 익명", desc: "작성자 신원은 다른 이용자에게 공개되지 않습니다. 계정 정보는 법원 영장 등 적법한 절차에 따라서만 제공될 수 있어요." },
               { icon: "✅", title: "재직자 인증", desc: "건강보험 EDI 또는 회사 이메일로 재직을 인증한 사람만 참여합니다." },
               { icon: "🛡️", title: "엄격한 모더레이션", desc: "혐오 표현, 허위 사실, 개인정보 노출에 대해 즉각 조치합니다." },
             ].map(f => (
