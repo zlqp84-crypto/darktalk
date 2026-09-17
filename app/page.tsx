@@ -3,6 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
 import { supabase } from "@/lib/supabase";
+import { PUBLIC_POST_COLUMNS, toPublicPost } from "@/lib/publicContent";
 import Link from "next/link";
 
 export const revalidate = 60; // 60초마다 재검증
@@ -11,7 +12,7 @@ export default async function Home() {
   // 최신 게시글 (최신순 50개)
   const { data: posts } = await supabase
     .from("posts")
-    .select("*")
+    .select(PUBLIC_POST_COLUMNS)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -80,7 +81,7 @@ export default async function Home() {
 
           {/* 게시글 목록 */}
           {(posts ?? []).map(post => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={toPublicPost(post)} />
           ))}
 
           {(!posts || posts.length === 0) && (

@@ -96,8 +96,9 @@ export default function WritePage() {
 
     const imageUrls: string[] = [];
     for (const img of images) {
-      const ext = img.file.name.split(".").pop();
-      const path = `${userData.user.id}/${crypto.randomUUID()}.${ext}`;
+      const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" } as Record<string, string>)[img.file.type];
+      // Ownership is enforced by storage.objects.owner_id, not a public UID path.
+      const path = `public/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("post-images").upload(path, img.file);
       if (uploadError) {
         setSubmitting(false);

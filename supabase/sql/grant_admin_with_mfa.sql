@@ -1,4 +1,10 @@
 -- 1) 아래 이메일을 본인이 Supabase 대시보드(Authentication > Users > Add user)에서
+-- P0 migration 이후 관리자 지정은 별도 검토된 운영 SQL로 수행하세요.
+do $$ begin
+  if to_regprocedure('public.require_admin_aal2()') is not null then
+    raise exception 'Deprecated after P0: do not overwrite guarded admin RPCs';
+  end if;
+end $$;
 --    직접 만든 개인 이메일 계정으로 바꿔서 실행하세요.
 --    (공개 회원가입 폼은 회사 이메일만 허용하므로, 관리자 계정은 대시보드에서 직접 생성합니다.)
 

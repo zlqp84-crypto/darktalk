@@ -1,4 +1,10 @@
 -- 게시글 사진 첨부를 위한 Storage 버킷 + 보안 정책.
+-- P0 migration 이후 UID 경로/공개 객체 목록 정책으로 되돌리지 않습니다.
+do $$ begin
+  if to_regprocedure('public.require_admin_aal2()') is not null then
+    raise exception 'Deprecated after P0: use the image identity migration';
+  end if;
+end $$;
 -- Supabase SQL Editor에서 실행하세요. (재실행해도 안전하게 만들어짐)
 
 -- 1) posts 테이블에 이미지 URL 배열 컬럼 추가

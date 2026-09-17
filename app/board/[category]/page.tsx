@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import PostCard from "@/components/PostCard";
 import { supabase } from "@/lib/supabase";
+import { PUBLIC_POST_COLUMNS, toPublicPost } from "@/lib/publicContent";
 
 interface Post {
   id: string;
@@ -40,7 +41,7 @@ export default function BoardPage({ params }: { params: Promise<{ category: stri
   useEffect(() => {
     async function fetchPosts() {
       setLoading(true);
-      let query = supabase.from("posts").select("*");
+      let query = supabase.from("posts").select(PUBLIC_POST_COLUMNS);
 
       // 카테고리 필터 (전체는 필터 없음)
       if (categoryMap[category]) {
@@ -57,7 +58,7 @@ export default function BoardPage({ params }: { params: Promise<{ category: stri
       }
 
       const { data } = await query.limit(50);
-      setPosts(data ?? []);
+      setPosts((data ?? []).map(toPublicPost));
       setLoading(false);
     }
     fetchPosts();

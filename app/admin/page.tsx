@@ -18,7 +18,7 @@ interface Comment {
   id: string;
   content: string;
   created_at: string;
-  posts: { title: string } | null;
+  post_title: string | null;
 }
 
 interface Profile {
@@ -178,12 +178,12 @@ export default function AdminPage() {
     if (gate !== "unlocked") return;
 
     async function loadStats() {
-      const [{ count: postsCount }, { count: commentsCount }, { count: usersCount }] = await Promise.all([
-        supabase.from("posts").select("*", { count: "exact", head: true }),
-        supabase.from("comments").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-      ]);
-      setStats({ posts: postsCount ?? 0, comments: commentsCount ?? 0, users: usersCount ?? 0 });
+      const { data, error } = await supabase.rpc("admin_get_stats");
+      if (error) {
+        setGateError("관리자 통계를 불러오지 못했습니다. 권한과 MFA 인증 상태를 확인해주세요.");
+        return;
+      }
+      setStats(data);
     }
     loadStats();
   }, [gate]);
@@ -193,26 +193,19 @@ export default function AdminPage() {
 
     async function loadTab() {
       setLoadingTab(true);
-      if (tab === "posts") {
-        const { data } = await supabase
-          .from("posts")
-          .select("id, title, category, likes_count, comments_count, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50);
+      // Every management RPC checks admin + aal2 in the database as well.
+      const rpc = { posts: "admin_list_posts", comments: "admin_list_comments", users: "admin_list_profiles" }[tab];
+      const { data, error } = await supabase.rpc(rpc);
+      if (error) {
+        setPosts([]);
+        setComments([]);
+        setUsers([]);
+        setGateError("관리자 목록을 불러오지 못했습니다. 권한과 MFA 인증 상태를 확인해주세요.");
+      } else if (tab === "posts") {
         setPosts(data ?? []);
       } else if (tab === "comments") {
-        const { data } = await supabase
-          .from("comments")
-          .select("id, content, created_at, posts(title)")
-          .order("created_at", { ascending: false })
-          .limit(50);
-        setComments((data as unknown as Comment[]) ?? []);
+        setComments(data ?? []);
       } else {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, nickname, company, job_title, is_verified, is_admin, created_at")
-          .order("created_at", { ascending: false })
-          .limit(50);
         setUsers(data ?? []);
       }
       setLoadingTab(false);
@@ -329,6 +322,7 @@ export default function AdminPage() {
 
       <main style={{ flex: 1, padding: "32px 20px", maxWidth: "900px", margin: "0 auto", width: "100%" }}>
         <h1 style={{ margin: "0 0 24px", fontSize: "20px", fontWeight: "800" }}>🛠️ 관리자 페이지</h1>
+        {gateError && <p role="alert" style={{ color: "#e94560" }}>{gateError}</p>}
 
         {/* 통계 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
@@ -383,7 +377,7 @@ export default function AdminPage() {
               <div key={c.id} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: "0 0 4px", fontSize: "13px", color: "#3f3f46", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.content}</p>
-                  <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>원글: {c.posts?.title ?? "(삭제된 글)"}</p>
+                  <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>원글: {c.post_title ?? "(삭제된 글)"}</p>
                 </div>
                 <button onClick={() => handleDeleteComment(c.id)} style={btnDanger}>삭제</button>
               </div>

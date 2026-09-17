@@ -1,0 +1,10 @@
+# Deployment needs application sources, not local credentials or audit assets.
+.env*
+.git
+.claude
+darktalk-src.zip
+darktalk_sample_posts.sql
+supabase
+tests
+docs
+*.tsbuildinfo

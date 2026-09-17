@@ -5,28 +5,10 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
-import { formatAuthor, type AuthorProfile } from "@/lib/authorDisplay";
-
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  likes_count: number;
-  comments_count: number;
-  views_count: number;
-  created_at: string;
-  image_urls: string[] | null;
-  profiles: AuthorProfile | null;
-}
-
-interface Comment {
-  id: string;
-  post_id: string;
-  content: string;
-  created_at: string;
-  profiles: AuthorProfile | null;
-}
+import {
+  PUBLIC_POST_COLUMNS, PUBLIC_COMMENT_COLUMNS, toPublicPost, toPublicComment,
+  type PublicPost as Post, type PublicComment as Comment,
+} from "@/lib/publicContent";
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -60,7 +42,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
       const { data: postData } = await supabase
         .from("posts")
-        .select("*, profiles(nickname, company, job_title, is_verified)")
+        .select(PUBLIC_POST_COLUMNS)
         .eq("id", id)
         .single();
 
@@ -69,19 +51,19 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         setLoading(false);
         return;
       }
-      setPost(postData);
+      setPost(toPublicPost(postData));
 
       const nextViews = (postData.views_count ?? 0) + 1;
       supabase.rpc("increment_post_views", { p_post_id: id }).then();
 
       const [{ data: commentData }, { data: similarData }] = await Promise.all([
-        supabase.from("comments").select("*, profiles(nickname, company, job_title, is_verified)").eq("post_id", id).order("created_at", { ascending: true }),
-        supabase.from("posts").select("*, profiles(nickname, company, job_title, is_verified)").eq("category", postData.category).neq("id", id).limit(3),
+        supabase.from("comments").select(PUBLIC_COMMENT_COLUMNS).eq("post_id", id).order("created_at", { ascending: true }),
+        supabase.from("posts").select(PUBLIC_POST_COLUMNS).eq("category", postData.category).neq("id", id).limit(3),
       ]);
 
-      setComments(commentData ?? []);
-      setSimilarPosts(similarData ?? []);
-      setPost({ ...postData, views_count: nextViews });
+      setComments((commentData ?? []).map(toPublicComment));
+      setSimilarPosts((similarData ?? []).map(toPublicPost));
+      setPost({ ...toPublicPost(postData), views_count: nextViews });
       setLoading(false);
     }
     load();
@@ -110,7 +92,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     const { data, error } = await supabase
       .from("comments")
       .insert({ post_id: post.id, user_id: userData.user.id, content: comment.trim() })
-      .select("*")
+      .select(PUBLIC_COMMENT_COLUMNS)
       .single();
     setCommentSubmitting(false);
 
@@ -119,7 +101,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    setComments(prev => [...prev, data]);
+    setComments(prev => [...prev, toPublicComment(data)]);
     setComment("");
 
     const nextCommentsCount = post.comments_count + 1;
@@ -167,7 +149,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             </h1>
 
             <div style={{ display: "flex", gap: "12px", fontSize: "13px", color: "#a1a1aa", marginBottom: "24px" }}>
-              <span>{formatAuthor(post.profiles)}</span>
+              <span>익명</span>
               <span>·</span>
               <span>{timeAgo(post.created_at)}</span>
               <span>·</span>
@@ -260,7 +242,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       fontSize: "14px",
                     }}>👤</div>
                     <div>
-                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>{formatAuthor(c.profiles)}</p>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: "600", color: "#18181b" }}>익명</p>
                       <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>{timeAgo(c.created_at)}</p>
                     </div>
                   </div>

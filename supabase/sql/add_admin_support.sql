@@ -1,5 +1,11 @@
 -- 관리자 페이지(/admin)를 위한 준비 작업.
 -- Supabase SQL Editor에서 실행하세요.
+-- P0 migration 이후에는 이 구버전 스크립트로 보안을 되돌릴 수 없습니다.
+do $$ begin
+  if to_regprocedure('public.require_admin_aal2()') is not null then
+    raise exception 'Deprecated after P0: use versioned migrations; do not restore legacy admin functions';
+  end if;
+end $$;
 
 -- 1) profiles에 관리자 플래그 추가
 alter table profiles
