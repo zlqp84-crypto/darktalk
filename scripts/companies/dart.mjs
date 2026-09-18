@@ -33,7 +33,8 @@ export function parseDart(input) {
     const name = record.corp_name;
     const stock = record.stock_code || '';
     const modified = record.modify_date;
-    if (!/^\d{8}$/.test(code) || typeof name !== 'string' || !name.trim() || name.length > 200 || /[\u0000-\u001f]/.test(name) || !/^\d{8}$/.test(modified) || (stock && !/^\d{6}$/.test(stock))) throw new Error('Invalid DART company record');
+    // DART stock codes are six-character strings; live data includes e.g. 0068Y0.
+    if (!/^\d{8}$/.test(code) || typeof name !== 'string' || !name.trim() || name.length > 200 || /[\u0000-\u001f]/.test(name) || !/^\d{8}$/.test(modified) || (stock && !/^[A-Z0-9]{6}$/.test(stock))) throw new Error('Invalid DART company record');
     if (seen.has(code)) throw new Error('Duplicate DART company code');
     seen.add(code);
     return { code, name: name.trim(), stock, modified: validDate(`${modified.slice(0,4)}-${modified.slice(4,6)}-${modified.slice(6,8)}`) };

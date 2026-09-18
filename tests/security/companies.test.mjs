@@ -57,6 +57,11 @@ test('DART XML and ZIP retain leading zero IDs and entity text',()=>{
 test('invalid XML, DTD, dates and DART error are rejected',()=>{
  for(const input of ['<result>', '<!DOCTYPE foo><result/>', xml('x','123'),xml('x','012345','20260230'),'<result><status>010</status><message>invalid key</message></result>']) assert.throws(()=>parseDart(strToU8(input)));
 });
+test('current DART alphanumeric stock codes are accepted without numeric coercion',()=>{
+ const records=parseDart(strToU8(xml('Test company','0068Y0')));
+ assert.equal(records[0].stock,'0068Y0');
+ assert.throws(()=>parseDart(strToU8(xml('Test company','0068<0'))));
+});
 test('import is draft by default, safely quotes names, idempotent, preserves curated classification',async()=>{
  const records=parseDart(strToU8(xml("O&apos;Reilly \\ Test")));
  const sql=buildImportSql(records,'2026-09-18');
