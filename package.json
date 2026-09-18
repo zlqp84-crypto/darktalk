@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:security": "node --test tests/security/*.test.mjs"
+    "test:security": "node --test tests/security/*.test.mjs",
+    "companies:prepare": "node --env-file-if-exists=.env.local scripts/companies/import-dart.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -23,6 +24,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "fast-xml-parser": "^5.11.1",
+    "fflate": "^0.8.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

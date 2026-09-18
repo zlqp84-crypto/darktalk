@@ -6,5 +6,7 @@ darktalk-src.zip
 darktalk_sample_posts.sql
 supabase
 tests
+scripts
+artifacts
 docs
 *.tsbuildinfo
