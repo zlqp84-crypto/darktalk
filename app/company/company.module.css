@@ -26,3 +26,6 @@ a.card:hover { border-color:#818cf8; }
 .source { color:#4338ca; text-decoration:underline; text-underline-offset:3px; }
 .back { display:inline-block; margin-bottom:20px; font-size:14px; color:#52525b; }
 @media(max-width:640px) { .grid,.filterGrid { grid-template-columns:1fr; } .hero { padding:24px; } .hero h1 { font-size:23px; } .facts { grid-template-columns:90px 1fr; } }
+.review {margin-top:22px;padding-top:18px;border-top:1px solid #e4e4e7;overflow-wrap:anywhere;}
+.reviewText {white-space:pre-wrap;line-height:1.8;}
+.filters textarea {width:100%;padding:12px;border:1px solid #d4d4d8;border-radius:8px;font:inherit;resize:vertical;}

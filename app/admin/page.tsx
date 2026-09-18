@@ -5,6 +5,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 
+import ReviewModeration from "./ReviewModeration";
+
 interface Post {
   id: string;
   title: string;
@@ -323,6 +325,8 @@ export default function AdminPage() {
       <main style={{ flex: 1, padding: "32px 20px", maxWidth: "900px", margin: "0 auto", width: "100%" }}>
         <h1 style={{ margin: "0 0 24px", fontSize: "20px", fontWeight: "800" }}>🛠️ 관리자 페이지</h1>
         {gateError && <p role="alert" style={{ color: "#e94560" }}>{gateError}</p>}
+
+        <ReviewModeration />
 
         {/* 통계 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>

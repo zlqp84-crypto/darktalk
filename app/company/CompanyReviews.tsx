@@ -1,0 +1,12 @@
+"use client";
+import {useEffect,useState} from 'react';
+import Link from 'next/link';
+import {supabase} from '@/lib/supabase';
+import styles from './company.module.css';
+type Review={id:string;rating:number;title:string;pros:string;cons:string;published_on:string};
+export default function CompanyReviews({companyId}:{companyId:string}) {
+ const [rows,setRows]=useState<Review[]>([]),[until,setUntil]=useState<string|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(false),[page,setPage]=useState(0),[refresh,setRefresh]=useState(0);
+ useEffect(()=>{const {data:listener}=supabase.auth.onAuthStateChange(()=>{setRows([]);setUntil(null);setRefresh(x=>x+1)});return()=>{listener.subscription.unsubscribe()}},[]);
+ useEffect(()=>{let active=true; async function load(){setLoading(true);setError(false);setRows([]);const {data:{user}}=await supabase.auth.getUser();if(!active)return;if(!user){setUntil(null);setLoading(false);return}const a=await supabase.rpc('company_review_access');if(!active)return;setUntil(a.data);if(a.error){setError(true);setLoading(false);return}if(a.data){const r=await supabase.rpc('list_company_reviews',{p_company_id:companyId,p_offset:page*20});if(!active)return;setRows(r.data??[]);setError(!!r.error)}setLoading(false)}void load();return()=>{active=false}},[companyId,page,refresh]);
+ return <section className={`${styles.card} ${styles.section}`}><h2>직장 경험 리뷰</h2><p className={styles.note}>직접 경험한 장점과 아쉬운 점을 작성해주세요. 관리자 승인 후 90일 동안 리뷰 본문을 열람할 수 있습니다. 작성자의 계정·닉네임은 표시하지 않습니다.</p><Link className={styles.button} href={`/company/write?company=${companyId}`}>리뷰 작성 · 내 리뷰 관리</Link>{loading?<p role="status">확인 중…</p>:error?<p role="alert">리뷰를 불러오지 못했습니다. <button onClick={()=>setRefresh(x=>x+1)}>다시 시도</button></p>:!until?<p>리뷰를 작성하고 승인받으면 본문이 공개됩니다. 로그인 후 내 리뷰에서 승인 상태를 확인하세요.</p>:<><p className={styles.note}>열람 기한: {new Date(until).toLocaleDateString('ko-KR')}</p>{rows.length===0?<p>아직 승인된 리뷰가 없습니다.</p>:rows.slice(0,20).map(r=><article className={styles.review} key={r.id}><h3>{r.title}</h3><p>★ {r.rating} / 5 · {r.published_on} · 익명</p><strong>장점</strong><p className={styles.reviewText}>{r.pros}</p><strong>아쉬운 점</strong><p className={styles.reviewText}>{r.cons}</p></article>)}<nav className={styles.pager}><button disabled={page===0} onClick={()=>setPage(page-1)}>이전</button><span>{page+1}페이지</span><button disabled={rows.length<=20} onClick={()=>setPage(page+1)}>다음</button></nav></>}</section>
+}

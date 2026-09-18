@@ -58,7 +58,7 @@ export default function CompanyDirectory({ initialQuery = '' }: { initialQuery?:
       <h2>{company.name}</h2><div className={styles.badges}>
         {!company.company_classifications.some(f => f.dimension === 'type') && <span className={styles.badge}>분류 확인 중</span>}
         {company.company_classifications.map(f => <span className={styles.badge} key={`${f.dimension}-${f.value}`}>{classificationLabel(f)}</span>)}
-      </div><p className={styles.note}>기본정보 확인일 {company.checked_on}<br />리뷰 준비 중 · 평점 집계 전</p><span className={styles.source}>기본정보 및 출처 보기 →</span>
+      </div><p className={styles.note}>기본정보 확인일 {company.checked_on}<br />리뷰 작성·승인 후 본문 열람</p><span className={styles.source}>기본정보 및 출처 보기 →</span>
     </Link>)}</div>}
     {!loading && !error && (page > 0 || rows.length > 24) && <nav aria-label="회사 목록 페이지" className={styles.pager}><button className={styles.button} disabled={page === 0} onClick={() => setPage(page - 1)}>이전</button><span>{page + 1}페이지</span><button className={styles.button} disabled={rows.length <= 24} onClick={() => setPage(page + 1)}>다음</button></nav>}
   </main><Footer /></>;

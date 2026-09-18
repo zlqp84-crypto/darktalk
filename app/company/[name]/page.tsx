@@ -6,6 +6,7 @@ import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
 import { COMPANY_SELECT, LEGACY_COMPANY_NAMES, classificationLabel, safeExternalUrl, type Company } from '@/lib/companies';
 import styles from '../company.module.css';
+import CompanyReviews from '../CompanyReviews';
 function Source({ url, children }: { url: string | null; children: React.ReactNode }) {
   const href = safeExternalUrl(url);
   return href ? <a className={styles.source} href={href} target="_blank" rel="noopener noreferrer">{children} ↗</a> : <span>{children}</span>;
@@ -41,7 +42,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ name: 
         {company.company_classifications.map(f => <p key={`${f.dimension}-${f.value}`}><span className={styles.badge}>{classificationLabel(f)}</span> <span className={styles.note}>{f.reference_date} 기준 · </span><Source url={f.source_url}>분류 근거</Source></p>)}
       </section>
       {company.company_rankings.length > 0 && <section className={`${styles.card} ${styles.section}`}><h2>국내 1,000대 기업</h2>{company.company_rankings.map(r => <p key={`${r.ranking_year}-${r.publisher}-${r.basis}`}><strong>{r.ranking_year}년 · {r.position}위</strong><br /><span className={styles.note}>{r.publisher} · {r.basis} · {r.reference_date} 기준</span><br /><Source url={r.source_url}>순위 출처</Source></p>)}</section>}
-      <section className={`${styles.empty} ${styles.section}`}><h2>리뷰와 연봉 정보는 아직 준비 중입니다.</h2><p className={styles.note}>현재는 회사·기관 기본정보를 제공합니다.<br />리뷰 작성·승인 기능이 열리면 실제 이용자가 남긴 평가를 확인할 수 있습니다.</p></section>
+      <CompanyReviews companyId={company.id} />
     </>}
   </main><Footer /></>;
 }
