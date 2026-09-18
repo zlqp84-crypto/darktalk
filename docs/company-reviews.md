@@ -10,3 +10,11 @@
 - 별도 서버 로그에 본문/작성자/토큰을 기록하지 않는다. DB에는 중복 제출 방지 및 열람권을 위해 계정 연결을 보관한다. 외부 익명성과 운영 DB에서의 비식별은 다르다.
 - 회귀 테스트 233개 통과. TypeScript 및 production build 통과. ESLint 오류 0, 기존 img 경고 3개.
 - 평점 집계/연봉, 재직 인증, 리뷰 신고, 세부 관리자 감사 이력은 이번 버전에 포함하지 않았다. 작성자는 직접 경험 여부를 확인하고 제출한다.
+
+## 운영 적용 및 확인
+
+- 2026-09-19 기존 DB에 company_reviews 없음, require_admin_aal2() 존재, 기업 119,376행 및 profiles 컬럼을 재확인 후 SQL Editor로 migration 적용 성공.
+- Git 커밋 5c1e306, Vercel 배포 3rCYb7CJqn1XavHbSkqsjpZS3s7m Ready 확인. darktalk.vercel.app 기존 주소 유지.
+- 운영 익명 API: raw company_reviews SELECT, list_company_reviews, admin_company_reviews 모두 HTTP 401 / SQLSTATE 42501.
+- 운영 비로그인 화면: 삼성전자 상세의 90일 열람 안내 및 잠금 상태, 리뷰 작성 경로의 로그인 안내 확인.
+- A/B/관리자 aal1/aal2 테스트는 격리 PGlite 역할/JWT claims 테스트다. 운영 실계정 작성→승인→열람 E2E는 아직 미실행.
