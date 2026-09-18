@@ -4,7 +4,8 @@
 
 2026-09-18(KST) 운영 Supabase에 두 migration을 적용하고 Vercel 운영 배포로 전환했다.
 격리 DB 테스트 168개와 운영 익명 HTTP 권한 검증을 통과했다.
-실제 사용자 로그인·OTP·이미지 업로드 E2E는 아직 수행하지 않았다.
+후속 검증에서 관리자 계정 로그인·OTP 성공을 사용자 확인 및 Auth 로그로 검증하고,
+실제 이미지 업로드·비로그인 공개 표시·테스트 데이터 정리를 완료했다.
 배포 근거와 검증 범위는 `p0-deployment.md`에 기록했다.
 
 실제 스키마 확인 근거는 `p0-schema-snapshot.md`에 기록했다.
@@ -132,8 +133,9 @@ npm run build
 - 운영 익명 HTTP에서 식별 컬럼, 전체 컬럼, 작성자 필터, 프로필 조인/조회,
   관리자 통계·회원 목록 RPC 접근은 HTTP 401 / PostgreSQL 42501로 차단됐다.
 
-실제 로그인·OTP, Storage 바이너리 업로드/다운로드 E2E는 미실행이다.
-Storage 소유권 RLS는 최소 service fixture에서 검증했으며 Supabase HTTP 서비스 자체를 검증한 것은 아니다.
+후속 운영 검증에서 관리자 계정의 실제 로그인·OTP 성공 로그와 이미지 업로드·공개 표시를 확인했다.
+일반 사용자 A/B의 실계정 E2E 및 Storage 타인 소유권 우회 HTTP 검증은 미실행이다.
+Storage 소유권 분리 테스트는 최소 service fixture에서 수행했다.
 공개 버킷 파일 다운로드는 Supabase가 SELECT RLS를 우회해 제공하므로 객체 목록을 비공개로 바꾸어도 파일 공개 표시는 유지하는 설계다.
 
 ## 적용 절차와 호환성
