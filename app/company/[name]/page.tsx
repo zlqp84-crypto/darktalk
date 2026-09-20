@@ -34,11 +34,12 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ name: 
       <section className={styles.card}><h2>기본정보</h2><dl className={styles.facts}>
         <dt>회사·기관명</dt><dd>{company.name}</dd>
         <dt>홈페이지</dt><dd>{safeExternalUrl(company.website_url) ? <Source url={company.website_url}>홈페이지 방문</Source> : '확인 중'}</dd>
-        <dt>정보 출처</dt><dd><Source url={company.source_url}>{company.source_system === 'dart' ? '금융감독원 DART' : '원문 확인'}</Source></dd>
-        <dt>출처 변경일</dt><dd>{company.source_updated_on}</dd><dt>정보 확인일</dt><dd>{company.checked_on}</dd>
+        <dt>정보 출처</dt><dd><Source url={company.source_url}>{company.source_system === 'dart' ? '금융감독원 DART' : company.source_system === 'alio' ? 'ALIO 공공기관 경영정보' : '원문 확인'}</Source></dd>
+        <dt>{company.source_system === 'alio' ? '출처 조회일' : '출처 변경일'}</dt><dd>{company.source_updated_on}</dd><dt>정보 확인일</dt><dd>{company.checked_on}</dd>
       </dl></section>
       <section className={`${styles.card} ${styles.section}`}><h2>유형·업종·지역</h2>
         {!company.company_classifications.some(f => f.dimension === 'type') && <p className={styles.note}>회사·기관 유형은 확인 중입니다. 상장 여부만으로 대기업·중견기업을 판단하지 않습니다.</p>}
+        <p className={styles.note}>상장기업은 한국거래소 목록 기준입니다. DART 종목코드 보유는 현재 상장을 의미하지 않습니다.</p>
         {company.company_classifications.map(f => <p key={`${f.dimension}-${f.value}`}><span className={styles.badge}>{classificationLabel(f)}</span> <span className={styles.note}>{f.reference_date} 기준 · </span><Source url={f.source_url}>분류 근거</Source></p>)}
       </section>
       {company.company_rankings.length > 0 && <section className={`${styles.card} ${styles.section}`}><h2>국내 1,000대 기업</h2>{company.company_rankings.map(r => <p key={`${r.ranking_year}-${r.publisher}-${r.basis}`}><strong>{r.ranking_year}년 · {r.position}위</strong><br /><span className={styles.note}>{r.publisher} · {r.basis} · {r.reference_date} 기준</span><br /><Source url={r.source_url}>순위 출처</Source></p>)}</section>}

@@ -54,17 +54,7 @@ select 'dart-'||code,name,'dart',code,${quote(DART_SOURCE)},modified,${quote(che
 on conflict(source_system,source_id) do update set name=excluded.name,source_url=excluded.source_url,source_updated_on=excluded.source_updated_on,checked_on=excluded.checked_on
 where excluded.source_updated_on >= companies.source_updated_on and excluded.checked_on >= companies.checked_on;
 -- Re-import never publishes an existing hidden company or overwrites editorial fields.
--- Remove only this source's outdated listing assertion, never other classifications.
-delete from public.company_classifications f using public.companies c,dart_import d
-where f.company_id=c.id and c.source_system='dart' and c.source_id=d.code
-and f.dimension='tag' and f.value='listed' and f.source_url=${quote(DART_SOURCE)}
-and f.reference_date <= ${quote(checkedOn)}::date and c.checked_on <= ${quote(checkedOn)}::date
-and c.source_updated_on <= d.modified and d.stock='';
-insert into public.company_classifications(company_id,dimension,value,source_url,reference_date)
-select c.id,'tag','listed',${quote(DART_SOURCE)},${quote(checkedOn)}::date from public.companies c join dart_import d on c.source_system='dart' and c.source_id=d.code
-where d.stock<>'' and c.source_updated_on <= d.modified and c.checked_on <= ${quote(checkedOn)}::date
-on conflict(company_id,dimension,value) do update set reference_date=excluded.reference_date
-where company_classifications.source_url=excluded.source_url and company_classifications.reference_date<=excluded.reference_date;
+-- Listing status is supplied separately from the current KRX listed-company snapshot.
 commit;`);
   return sql.join('\n');
 }
