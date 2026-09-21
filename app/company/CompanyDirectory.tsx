@@ -37,7 +37,7 @@ export default function CompanyDirectory({ initialQuery = '' }: { initialQuery?:
     <section className={styles.hero}>
       <div className={styles.eyebrow}>COMPANY DIRECTORY</div>
       <h1>회사와 기관, 기준을 보고 찾으세요</h1>
-      <p>기업·공공기관·행정기관의 기본정보와 분류 출처를 확인하세요.<br />리뷰와 평점은 실제 작성된 정보가 있을 때만 제공합니다.</p>
+      <p>기업·병원·공공기관·행정기관의 기본정보와 분류 출처를 확인하세요.<br />리뷰와 평점은 실제 작성된 정보가 있을 때만 제공합니다.</p>
     </section>
     <form className={styles.filters} onSubmit={e => { e.preventDefault(); setPage(0); setFilters({ ...draft }); }}>
       <div className={styles.search}>
@@ -51,7 +51,11 @@ export default function CompanyDirectory({ initialQuery = '' }: { initialQuery?:
         <label>업종<input placeholder="등록된 업종명" maxLength={100} value={draft.industry} onChange={e => setDraft({ ...draft, industry: e.target.value })} /></label>
         <label>지역<input placeholder="예: 서울" maxLength={100} value={draft.region} onChange={e => setDraft({ ...draft, region: e.target.value })} /></label>
       </div>
-      <div className={styles.note}>분류와 순위는 출처가 확인된 항목만 검색됩니다. 순위의 기준·발행기관은 상세 화면에 표시합니다.</div>
+      <div className={styles.note}>분류와 순위는 출처가 확인된 항목만 검색됩니다. 중견기업 확인서 발급 기업은 추가 태그에서 찾을 수 있습니다. 발급 이력은 현재 중견기업 여부나 비상장 여부를 보장하지 않습니다.</div>
+      <div className={styles.pager}>
+        <button type="button" className={styles.button} onClick={() => { const next = { ...initial, type: 'medical' }; setDraft(next); setFilters(next); setPage(0); }}>병원·의료기관 찾기</button>
+        <button type="button" className={styles.button} onClick={() => { const next = { ...initial, tag: 'mid_sized_certificate' }; setDraft(next); setFilters(next); setPage(0); }}>중견기업 발급 이력 찾기</button>
+      </div>
       {hasFilters && <button type="button" className={styles.button} onClick={() => { setDraft(initial); setFilters(initial); setPage(0); }}>필터 초기화</button>}
     </form>
     {loading ? <div role="status" className={styles.empty}>회사·기관 정보를 불러오고 있습니다.</div> : error ? <div role="alert" className={styles.error}>목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요. <button className={styles.button} onClick={() => setRetry(retry + 1)}>다시 시도</button></div> : rows.length === 0 ? <div className={styles.empty}><strong>{hasFilters ? '조건에 맞는 회사·기관이 없습니다.' : '회사·기관 정보를 준비하고 있습니다.'}</strong><p className={styles.note}>{hasFilters ? '검색어를 줄이거나 분류 조건을 변경해보세요.' : '출처가 확인된 정보부터 등록합니다. 확인되지 않은 평점이나 연봉은 표시하지 않습니다.'}</p></div> : <div className={styles.grid}>{rows.slice(0, 24).map(company => <Link className={styles.card} key={company.id} href={`/company/${company.slug}`}>
