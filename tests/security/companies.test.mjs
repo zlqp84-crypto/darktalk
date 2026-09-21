@@ -13,6 +13,7 @@ const xml = (name = 'Test &amp; Co', stock='012345', date='20260917') => `<resul
 before(async () => {
  await db.exec("create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;");
  await db.exec(await readFile(new URL('../../supabase/migrations/20260918030000_company_directory.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../../supabase/migrations/20260921020000_company_search_plan.sql',import.meta.url),'utf8'));
  await db.query("insert into public.companies(id,slug,name,source_system,source_id,source_url,source_updated_on,checked_on,is_published) values ($1,'fixture-public','Fixture 100% Corp','verified_manual','one',$3,'2026-09-17','2026-09-18',true),($2,'fixture-draft','Private draft','verified_manual','two',$3,'2026-09-17','2026-09-18',false)",[A,B,source]);
  await db.query("insert into public.company_classifications(company_id,dimension,value,source_url,reference_date) values ($1,'type','mid_sized',$3,'2026-09-17'),($1,'tag','listed',$3,'2026-09-17'),($2,'type','government',$3,'2026-09-17')",[A,B,source]);
  await db.query("insert into public.company_rankings(company_id,ranking_key,ranking_year,position,basis,publisher,source_url,reference_date) values ($1,'domestic_top1000',2025,10,'revenue','Fixture publisher',$3,'2026-09-17'),($2,'domestic_top1000',2025,11,'revenue','Fixture publisher',$3,'2026-09-17')",[A,B,source]);

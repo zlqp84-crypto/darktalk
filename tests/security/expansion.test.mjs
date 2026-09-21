@@ -40,7 +40,7 @@ test('expansion migration retains RLS, blocks client writes, permits published f
  const db=new PGlite();
  try {
   await db.exec('create role anon; create role authenticated; create role service_role bypassrls; grant usage on schema public to anon,authenticated,service_role;');
-  for(const migration of ['20260918030000_company_directory.sql','20260919020000_listing_provenance.sql','20260921010000_medical_and_mme_sources.sql'])await db.exec(await readFile('supabase/migrations/'+migration,'utf8'));
+  for(const migration of ['20260918030000_company_directory.sql','20260919020000_listing_provenance.sql','20260921010000_medical_and_mme_sources.sql','20260921020000_company_search_plan.sql'])await db.exec(await readFile('supabase/migrations/'+migration,'utf8'));
   const records=expansionRecords(snapshot(),normalizeCertificates([certificate(1)],date,1),date);
   for(const row of records.companies)await db.query('insert into companies(id,slug,name,source_system,source_id,source_url,source_updated_on,checked_on,is_published) values($1,$2,$3,$4,$5,$6,$7,$8,$9)',Object.values(row));
   for(const row of records.facts)await db.query('insert into company_classifications(id,company_id,dimension,value,source_url,reference_date) values($1,$2,$3,$4,$5,$6)',Object.values(row));
