@@ -19,7 +19,9 @@ export function buildHospitalRefresh(previous, current, {publishNew = false, com
   const before = new Map(previous.rows.map(row=>[row.id,row]));
   const identityHint = row => JSON.stringify([row.name.normalize('NFKC').replace(/\s/g,''),row.region,row.district]);
   const existingHints = new Set(previous.rows.map(identityHint));
-  const duplicateCandidates = current.rows.filter(row=>!before.has(row.id) && existingHints.has(identityHint(row))).map(row=>row.id);
+  const currentHints = new Map();
+  for (const row of current.rows) currentHints.set(identityHint(row),(currentHints.get(identityHint(row))??0)+1);
+  const duplicateCandidates = current.rows.filter(row=>!before.has(row.id) && (existingHints.has(identityHint(row)) || currentHints.get(identityHint(row))>1)).map(row=>row.id);
   const withheld = new Set(duplicateCandidates);
   report.duplicateCandidates = duplicateCandidates;
   const selected = new Set([...report.added, ...report.changed].map(row=>row.id));
@@ -39,6 +41,7 @@ lock table public.companies, public.company_classifications in share row exclusi
 create temporary table hospital_refresh on commit drop as
 select * from jsonb_to_recordset(${quote(JSON.stringify(rows))}::jsonb)
 as x(source_id text,id uuid,name text,publish_new boolean,old_facts jsonb,new_facts jsonb);
+alter table hospital_refresh enable row level security;
 do $guard$
 begin
  if (select count(*) from public.companies where source_system='hira') <> ${previous.total}

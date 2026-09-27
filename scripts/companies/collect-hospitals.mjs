@@ -1,11 +1,18 @@
-import {mkdirSync,writeFileSync,renameSync} from 'node:fs';
+import {mkdirSync,writeFileSync,renameSync,existsSync,readFileSync} from 'node:fs';
 import {HIRA_SOURCE,parseHospitalPage,validateHospitalSnapshot} from './hira.mjs';
 
 const key=process.env.HIRA_API_KEY?.trim();
 if(!key) throw Error('HIRA_API_KEY missing');
 const checkedOn=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());
+const file=`artifacts/companies/hira-${checkedOn}.json`;
 const rows=[],seen=new Set(); let total, size;
 try {
+ if(existsSync(file)) {
+  const saved=validateHospitalSnapshot(JSON.parse(readFileSync(file,'utf8')));
+  if(saved.checkedOn!==checkedOn) throw Error('Snapshot date mismatch');
+  console.log(JSON.stringify({complete:true,reused:true,total:saved.total}));
+  process.exit(0);
+ }
  for(let page=1;page<=1000;page++) {
   const url=new URL('https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList');
   url.searchParams.set('ServiceKey',key); url.searchParams.set('numOfRows','1000'); url.searchParams.set('pageNo',String(page));
@@ -26,7 +33,6 @@ try {
  }
  const snapshot=validateHospitalSnapshot({source:HIRA_SOURCE,checkedOn,total,rows});
  mkdirSync('artifacts/companies',{recursive:true});
- const file=`artifacts/companies/hira-${checkedOn}.json`;
  writeFileSync(file+'.tmp',JSON.stringify(snapshot)); renameSync(file+'.tmp',file);
  console.log(JSON.stringify({complete:true,total,types:Object.fromEntries(Object.entries(Object.groupBy(rows,row=>row.kind)).map(([kind,items])=>[kind,items.length]))}));
 } catch {

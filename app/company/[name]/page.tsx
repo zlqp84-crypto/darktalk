@@ -1,6 +1,7 @@
 "use client";
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +14,7 @@ function Source({ url, children }: { url: string | null; children: React.ReactNo
 }
 export default function CompanyDetailPage({ params }: { params: Promise<{ name: string }> }) {
   const { name } = use(params);
+  const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -22,10 +24,18 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ name: 
       setLoading(true); setError(false);
       const { data, error } = await supabase.from('companies').select(COMPANY_SELECT).eq('slug', name).maybeSingle();
       if (!active) return;
+      if (!data && !error) {
+        const { data: canonicalSlug, error: redirectError } = await supabase.rpc('resolve_company_slug', { p_slug: name });
+        if (!active) return;
+        if (!redirectError && typeof canonicalSlug === 'string' && canonicalSlug !== name && /^[a-z0-9][a-z0-9-]{1,100}$/.test(canonicalSlug)) {
+          router.replace(`/company/${canonicalSlug}`);
+          return;
+        }
+      }
       setCompany(data as unknown as Company | null); setError(!!error); setLoading(false);
     }
     void load(); return () => { active = false; };
-  }, [name]);
+  }, [name, router]);
   const legacyName = LEGACY_COMPANY_NAMES[name];
   return <><Header /><main className={styles.main}>
     <Link className={styles.back} href="/company">← 회사·기관 목록</Link>
