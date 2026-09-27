@@ -41,3 +41,13 @@ CLI db push를 먼저 실행하지 않는다. 운영 스키마/함수/정책/트
 ## 데이터 갱신
 
 아직 정기 갱신/병합을 실행하지 않았다. 기존 원천 수집기를 갱신용 upsert와 검토용 차이 보고로 확장해야 한다. 이름 일치만으로 병합하거나 원천에서 빠진 항목을 폐업으로 처리하지 않는다. 기존 회사 ID·slug·리뷰 연결 및 수동 공개 상태를 보존한다. 행정기관 자료는 공식 식별자·이용 조건 확인 후 별도로 등록한다.
+
+### 병원 갱신 사전 비교 도구
+
+`scripts/companies/compare-hospitals.mjs`는 기존 수집기의 완전한 JSON 스냅샷 두 개를 비교한다. 동일한 출처 식별자로만 대조하여 추가·명칭/분류/지역 변경·목록 누락·변경 없음을 분리한다. 누락은 폐업 판정이 아니며 DB 변경이나 SQL 생성은 하지 않는다. 불완전한 목록, 중복 식별자, 이전 날짜 입력은 거절하고 기존 보고서 파일을 덮어쓰지 않는다.
+
+```powershell
+node scripts/companies/compare-hospitals.mjs --before artifacts/companies/hira-OLD.json --after artifacts/companies/hira-NEW.json --output artifacts/companies/hira-review-NEW.json
+```
+
+2026-09-27 검증: 추가/명칭 변경/동명 별도 기관/누락/오래된 자료/불완전 자료 관련 3개 테스트 통과. 저장된 2026-09-21 자료 79,858건을 자기 자신과 비교해 변경 0건을 확인했다. 이는 대용량 입력 검증이며 새로운 자료 수집이나 운영 DB 최신화 완료를 뜻하지 않는다. 정기 실행과 검토 후 적용기는 아직 연결하지 않았다.
