@@ -50,4 +50,4 @@ CLI db push를 먼저 실행하지 않는다. 운영 스키마/함수/정책/트
 node scripts/companies/compare-hospitals.mjs --before artifacts/companies/hira-OLD.json --after artifacts/companies/hira-NEW.json --output artifacts/companies/hira-review-NEW.json
 ```
 
-2026-09-27 검증: 추가/명칭 변경/동명 별도 기관/누락/오래된 자료/불완전 자료 관련 3개 테스트 통과. 저장된 2026-09-21 자료 79,858건을 자기 자신과 비교해 변경 0건을 확인했다. 이는 대용량 입력 검증이며 새로운 자료 수집이나 운영 DB 최신화 완료를 뜻하지 않는다. 정기 실행과 검토 후 적용기는 아직 연결하지 않았다.
+초기 검증에서는 저장된 2026-09-21 자료 79,858건의 자기 비교를 완료했다. 이후 2026-09-27 최신 자료 79,874건을 수집하고 `prepare-hospital-refresh.mjs`를 통한 검토·롤백 검사 후 운영에 반영했다. 신규 28건 공개, 중복 후보 8건 비공개, 기존 9건 변경, 누락 20건 유지. 자세한 적용 증거와 다음 실행 절차는 `docs/company-expansion.md` 참조. 전체 테스트 258개 통과. 정기 실행 및 자동 병합은 미연결이다.

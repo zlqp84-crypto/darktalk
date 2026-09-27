@@ -62,3 +62,27 @@ CSV는 최초 적재용이며 기존 항목을 덮어쓰지 않는다. 실패한
 
 CSV 가져오기 완료 메시지나 건수만으로 공개하지 않는다. 원본과 기본정보·분류 해시가 일치하고, 기관별 분류 연결이 완전한지 확인하는 SQL 조건을 통과한 뒤 공개했다.
 추후 적재도 같은 전체 대조를 수행해야 한다. 실행용 검증·수정·공개 SQL은 로컬 `artifacts/companies/expansion-2026-09-21` 및 관련 감사 파일에 보관한다.
+
+## 2026-09-27 병원 자료 갱신
+
+- 공식 API 80페이지, 79,874건 완전 수집. 기존 원천 대비 추가 36건, 변경 9건, 누락 20건, 동일 79,829건.
+- 누락 20건은 폐업으로 판단하거나 삭제하지 않았다. 새로운 식별자 중 기존 이름(공백·Unicode 정규화)과 시도·시군구가 같은 8건은 중복 후보로 비공개 보관했다. 같은 기관이라는 확정이나 자동 병합은 하지 않았다.
+- 신규 공개 28건, 기존 명칭/지역 갱신 9건. 운영 HIRA 전체 79,894건 중 공개 79,886건, 비공개 8건. 전체 출처 합계 203,452건 중 공개 203,444건. 이는 출처별 등록 항목 수이며 고유 기업 수가 아니다.
+- 적용 전 운영 컬럼·출처·건수 확인 → 격리 DB 검사 → 운영 트랜잭션 롤백 검증 → 적용 순서로 진행했다. `HOSPITAL_REFRESH_APPLIED` 결과 확인.
+- 전체 HIRA `source_id|name` MD5는 `0a96dee623d9b739961864985c8bc22f`. 변경 대상 45기관의 HIRA 분류 `source_id|dimension|value` MD5는 `7ff0161ab710f4ba6ed8abcb4069f3cd`. SQL 트랜잭션 안에서 원문과 대조 후 커밋했다.
+- 공개 API에서 변경/신규 37건의 이름·기존 slug 일치 및 중복 후보 8건 미노출 확인. DART/ALIO/MME 건수 유지.
+- 보안 및 데이터 테스트 258개 통과. 갱신 도구 lint 통과. UI 변경은 없으며 DB 반영은 기존 운영 주소에 즉시 적용된다.
+
+### 다음 갱신 절차
+
+`prepare-hospital-refresh.mjs`는 SQL 생성기이며 DB에 직접 접속하지 않는다. 기본값은 신규 비공개·트랜잭션 롤백이다. 검토 후 `--publish-new`를 사용해도 동명·동지역 후보는 비공개다. 기존 회사 ID, slug, website_url, 공개 상태는 유지한다. 운영 명칭/분류가 기준과 다르거나 더 최신이면 중단한다. 변경 없는 항목의 DB checked_on은 갱신하지 않는다.
+
+```powershell
+node --env-file=.env.hira.local scripts/companies/collect-hospitals.mjs
+node scripts/companies/prepare-hospital-refresh.mjs --before artifacts/companies/hira-catalogue-baseline-2026-09-27.json --after artifacts/companies/hira-NEW.json --output artifacts/companies/hira-preflight-NEW.sql --publish-new
+# 검토 및 롤백 검증 후에만 --commit 옵션을 추가해 별도 적용 SQL 생성
+```
+
+현재 원천 파일은 `hira-2026-09-27.json`, 적용 후 누적 기준은 `hira-catalogue-baseline-2026-09-27.json`이다. 누락 기관을 보존하므로 다음 SQL 생성 시 직전 원천 파일만 기준으로 쓰면 DB 건수 검사가 실패한다. `buildHospitalRefresh` 반환값의 `nextBaseline`은 예상 누적 기준이며 기본 `applicationVerified:false`다. 실제 적용·검증 성공 후에만 적용된 기준으로 보관한다. 이번 누적 기준은 적용 완료를 확인하고 저장했다.
+
+검토 보고서, 중복 후보 ID, preflight/apply-v2 SQL, 공개 API 검증 결과는 `artifacts/companies`에 보관하며 Git에서 제외한다. 정기 스케줄 실행, 후보 통합, 폐업 자동 반영은 아직 활성화하지 않았다.
