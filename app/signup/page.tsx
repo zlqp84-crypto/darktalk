@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { isCompanyEmail } from '@/lib/companyEmail'
+import { ensureProfile } from '@/lib/ensureProfile'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -38,12 +39,15 @@ export default function SignupPage() {
       return
     }
 
-    if (data.user) {
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        nickname,
-        company,
-      })
+    if (data.session) {
+      if (!(await ensureProfile())) {
+        setError('가입은 완료됐지만 계정 정보 준비에 실패했어요. 로그인 화면에서 다시 로그인해주세요.')
+        setLoading(false)
+        return
+      }
+      router.push('/')
+      setLoading(false)
+      return
     }
 
     alert(`${email}로 인증 메일을 보냈어요. 메일의 링크를 클릭해 인증을 완료해주세요.`)

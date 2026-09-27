@@ -1,6 +1,12 @@
 -- posts 테이블 likes_count / views_count / comments_count 를
 -- RLS를 우회하는 열린 UPDATE 정책 없이 안전하게 증감시키기 위한 RPC 함수.
 -- Supabase 대시보드 > SQL Editor 에서 실행하세요.
+-- Legacy bootstrap only. Do not restore unbounded counters after hardening.
+do $$ begin
+ if to_regprocedure('public.set_post_like(uuid,boolean)') is not null then
+  raise exception 'Use versioned migrations; legacy counters would remove abuse protection';
+ end if;
+end $$;
 
 create or replace function increment_post_likes(p_post_id uuid, p_delta int)
 returns void

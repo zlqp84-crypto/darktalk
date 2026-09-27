@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/ensureProfile";
+import { preparePrivateImage } from "@/lib/imagePrivacy";
 
 const categories = ["대기업·중견기업", "중소기업", "스타트업", "프리랜서", "취업·이직", "급여·연봉", "직장생활", "자유게시판"];
 
@@ -89,22 +91,38 @@ export default function WritePage() {
 
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
+      setSubmitting(false);
       alert("로그인 후 이용할 수 있어요.");
       router.push("/login");
       return;
     }
 
+    if (!(await ensureProfile())) {
+      setSubmitting(false);
+      setError('계정 정보를 준비하지 못했어요. 다시 로그인해주세요.');
+      return;
+    }
     const imageUrls: string[] = [];
-    for (const img of images) {
-      const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" } as Record<string, string>)[img.file.type];
+    const uploadedPaths: string[] = [];
+    const cleanFiles: File[] = [];
+    try { for (const img of images) cleanFiles.push(await preparePrivateImage(img.file)); }
+    catch {
+      setSubmitting(false);
+      setError('사진을 안전하게 변환하지 못했어요. 5MB 이하의 다른 사진으로 다시 시도해주세요.');
+      return;
+    }
+    for (const cleanFile of cleanFiles) {
+      const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" } as Record<string, string>)[cleanFile.type];
       // Ownership is enforced by storage.objects.owner_id, not a public UID path.
       const path = `public/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("post-images").upload(path, img.file);
+      const { error: uploadError } = await supabase.storage.from("post-images").upload(path, cleanFile);
       if (uploadError) {
+        if (uploadedPaths.length) await supabase.storage.from('post-images').remove(uploadedPaths);
         setSubmitting(false);
-        setError("사진 업로드에 실패했어요: " + uploadError.message);
+        setError("사진 업로드에 실패했어요. 잠시 후 다시 시도해주세요.");
         return;
       }
+      uploadedPaths.push(path);
       const { data: urlData } = supabase.storage.from("post-images").getPublicUrl(path);
       imageUrls.push(urlData.publicUrl);
     }
@@ -124,7 +142,12 @@ export default function WritePage() {
     setSubmitting(false);
 
     if (insertError || !data) {
-      setError(insertError?.message ?? "게시글 등록에 실패했어요.");
+      // A lost response can follow a committed INSERT. Keep uploaded images
+      // unless the database explicitly rejected the write.
+      if (uploadedPaths.length && insertError && /^(23|42501)/.test(insertError.code)) {
+        await supabase.storage.from('post-images').remove(uploadedPaths);
+      }
+      setError("게시글 등록에 실패했어요. 잠시 후 다시 시도해주세요.");
       return;
     }
 

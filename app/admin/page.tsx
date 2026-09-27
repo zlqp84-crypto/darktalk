@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 
 import ReviewModeration from "./ReviewModeration";
+import ReportModeration from "./ReportModeration";
+import AccountRequests from "./AccountRequests";
 
 interface Post {
   id: string;
@@ -327,6 +329,8 @@ export default function AdminPage() {
         {gateError && <p role="alert" style={{ color: "#e94560" }}>{gateError}</p>}
 
         <ReviewModeration />
+        <ReportModeration />
+        <AccountRequests />
 
         {/* 통계 */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>

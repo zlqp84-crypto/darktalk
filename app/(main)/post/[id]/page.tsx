@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
+import ReportButton from "@/components/ReportButton";
 import { supabase } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/ensureProfile";
 import {
   PUBLIC_POST_COLUMNS, PUBLIC_COMMENT_COLUMNS, toPublicPost, toPublicComment,
   type PublicPost as Post, type PublicComment as Comment,
@@ -33,6 +35,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [notFound, setNotFound] = useState(false);
 
   const [liked, setLiked] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
   const [comment, setComment] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
 
@@ -52,9 +55,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         return;
       }
       setPost(toPublicPost(postData));
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData.user) {
+        const { data: ownLike } = await supabase.rpc("my_post_like", { p_post_id: id });
+        setLiked(ownLike === true);
+      } else setLiked(false);
 
-      const nextViews = (postData.views_count ?? 0) + 1;
-      supabase.rpc("increment_post_views", { p_post_id: id }).then();
+      const { data: countedViews } = await supabase.rpc("record_post_view", { p_post_id: id });
+      const nextViews = typeof countedViews === 'number' ? countedViews : (postData.views_count ?? 0);
 
       const [{ data: commentData }, { data: similarData }] = await Promise.all([
         supabase.from("comments").select(PUBLIC_COMMENT_COLUMNS).eq("post_id", id).order("created_at", { ascending: true }),
@@ -70,12 +78,16 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   }, [id]);
 
   const handleLike = async () => {
-    if (!post) return;
-    const nextLiked = !liked;
-    const nextCount = post.likes_count + (nextLiked ? 1 : -1);
-    setLiked(nextLiked);
-    setPost({ ...post, likes_count: nextCount });
-    await supabase.rpc("increment_post_likes", { p_post_id: post.id, p_delta: nextLiked ? 1 : -1 });
+    if (!post || likeBusy) return;
+    setLikeBusy(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) { router.push('/login'); return; }
+      const { data, error } = await supabase.rpc("set_post_like", { p_post_id: post.id, p_liked: !liked });
+      if (error || !data) { alert('추천을 저장하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+      setLiked(data.liked);
+      setPost(prev => prev ? { ...prev, likes_count: data.likes_count } : prev);
+    } finally { setLikeBusy(false); }
   };
 
   const handleCommentSubmit = async () => {
@@ -89,6 +101,11 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     }
 
     setCommentSubmitting(true);
+    if (!(await ensureProfile())) {
+      setCommentSubmitting(false);
+      alert('계정 정보를 준비하지 못했어요. 다시 로그인해주세요.');
+      return;
+    }
     const { data, error } = await supabase
       .from("comments")
       .insert({ post_id: post.id, user_id: userData.user.id, content: comment.trim() })
@@ -106,7 +123,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
     const nextCommentsCount = post.comments_count + 1;
     setPost({ ...post, comments_count: nextCommentsCount });
-    await supabase.rpc("increment_post_comments_count", { p_post_id: post.id, p_delta: 1 });
   };
 
   if (loading) {
@@ -172,6 +188,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
             <div style={{ display: "flex", gap: "10px", marginTop: "24px", borderTop: "1px solid #f4f4f5", paddingTop: "20px" }}>
               <button
                 onClick={handleLike}
+                disabled={likeBusy}
                 style={{
                   display: "flex", alignItems: "center", gap: "6px",
                   padding: "9px 18px", borderRadius: "20px",
@@ -188,13 +205,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                 border: "1px solid #e4e4e7", background: "#fff",
                 color: "#71717a", fontSize: "14px", cursor: "pointer",
               }}>💬 {comments.length}</button>
-              <button style={{
-                display: "flex", alignItems: "center", gap: "6px",
-                padding: "9px 18px", borderRadius: "20px",
-                border: "1px solid #e4e4e7", background: "#fff",
-                color: "#71717a", fontSize: "14px", cursor: "pointer",
-                marginLeft: "auto",
-              }}>🚨 신고</button>
+              <ReportButton type="post" id={post.id} />
             </div>
           </div>
 
@@ -246,7 +257,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       <p style={{ margin: 0, fontSize: "11px", color: "#a1a1aa" }}>{timeAgo(c.created_at)}</p>
                     </div>
                   </div>
-                  <button style={{ background: "none", border: "none", color: "#a1a1aa", fontSize: "12px", cursor: "pointer" }}>신고</button>
+                  <ReportButton type="comment" id={c.id} />
                 </div>
                 <p style={{ margin: 0, fontSize: "14px", color: "#3f3f46", lineHeight: "1.6" }}>{c.content}</p>
               </div>

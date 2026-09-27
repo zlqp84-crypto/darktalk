@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { ensureProfile } from '@/lib/ensureProfile'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -25,6 +26,11 @@ export default function LoginPage() {
       return
     }
 
+    if (!(await ensureProfile())) {
+      setError('계정 정보를 준비하지 못했어요. 잠시 후 다시 로그인해주세요.')
+      setLoading(false)
+      return
+    }
     router.push('/')
     setLoading(false)
   }
