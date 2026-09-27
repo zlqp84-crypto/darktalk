@@ -42,3 +42,10 @@
 - 실제 탈퇴 실행과 서버 강제 이미지 정제에는 서버 전용 Storage/Auth 관리 경로가 필요. 현재 로컬 환경은 공개 anon key만 있으며 service_role 키는 없다. 채팅으로 키를 받지 않는다.
 - 오류 알림, 백업 복구 리허설, CLI migration 이력 대조·등록, 데이터 자동 갱신·중복 통합·행정기관 자료는 미완료.
 - 2026-09-27 운영 migration 이력 테이블은 여전히 없음. CLI db push를 바로 실행하면 안 된다.
+
+## 운영 배포 결과
+
+- 앱 커밋 `1ccdd8e`, main push 완료. Vercel `F2wedyg1ojtQTaNu9kwgxJV1bjv8` Production Ready, Current Domain `darktalk.vercel.app` 확인.
+- 운영 익명 HTTP: likes/조회 영수증/신고/탈퇴 요청 테이블 읽기 차단, 프로필 복구·추천·신고·탈퇴·관리자 RPC 호출 차단. 익명 조회 RPC는 기존 조회수를 반환하며 증가시키지 않음.
+- 운영 브라우저: 마이페이지 로그인 안내, 기존 글·댓글 익명 표시, 신고 양식 열기/닫기 확인. 해당 테스트 탭 error 로그 0건. 실제 신고·탈퇴 요청·계정 삭제는 실행하지 않음.
+- Supabase 무료 플랜의 백업 미제공 확인. 복구 테스트는 아직 수행하지 않음. 자세한 후속 절차: `operations.md`.
