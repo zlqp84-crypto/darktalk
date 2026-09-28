@@ -10,11 +10,11 @@ export async function GET(request:Request){
  if(!imagesEnabled())return new Response(null,{status:503});
  const {service}=imageClients('unused');
  try{
-  const {data:jobs,error}=await service.from('post_image_jobs').select('id,status,public_path').eq('staging_removed',false).lt('created_at',new Date(Date.now()-24*60*60_000).toISOString()).limit(100);
+  const {data:jobs,error,status}=await service.from('post_image_jobs').select('id,status,public_path').eq('staging_removed',false).lt('created_at',new Date(Date.now()-24*60*60_000).toISOString()).limit(100);
   if(error){
    const message=(error.message??'').toLowerCase();
    const code=/^[A-Z0-9_]{1,20}$/.test(error.code??'')?error.code:message.includes('invalid api key')?'INVALID_SERVER_KEY':message.includes('fetch failed')?'NETWORK_FAILURE':message.includes('jwt')?'INVALID_SERVER_TOKEN':'UNAVAILABLE';
-   return Response.json({error:'Cleanup database access failed',code},{status:500});
+   return Response.json({error:'Cleanup database access failed',code,upstreamStatus:status},{status:500});
   }
   for(const job of jobs??[]){
    const {error:removeError}=await service.storage.from('post-image-staging').remove([job.id]);if(removeError)throw Error();
