@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/ensureProfile";
 import { preparePrivateImage } from "@/lib/imagePrivacy";
+import { uploadPrivateImage } from "@/lib/uploadPrivateImage";
 
 const categories = ["대기업·중견기업", "중소기업", "스타트업", "프리랜서", "취업·이직", "급여·연봉", "직장생활", "자유게시판"];
 
@@ -105,18 +106,24 @@ export default function WritePage() {
     const imageUrls: string[] = [];
     const uploadedPaths: string[] = [];
     const cleanFiles: File[] = [];
-    try { for (const img of images) cleanFiles.push(await preparePrivateImage(img.file)); }
+    let serverMode = false;
+    try {
+      if (images.length) {
+        const config = await fetch('/api/images', {cache:'no-store'});
+        if (!config.ok) throw new Error('Image service unavailable');
+        serverMode = (await config.json()).enabled === true;
+      }
+      for (const img of images) cleanFiles.push(await preparePrivateImage(img.file));
+    }
     catch {
       setSubmitting(false);
       setError('사진을 안전하게 변환하지 못했어요. 5MB 이하의 다른 사진으로 다시 시도해주세요.');
       return;
     }
     for (const cleanFile of cleanFiles) {
-      const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" } as Record<string, string>)[cleanFile.type];
-      // Ownership is enforced by storage.objects.owner_id, not a public UID path.
-      const path = `public/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("post-images").upload(path, cleanFile);
-      if (uploadError) {
+      let path: string;
+      try { path = await uploadPrivateImage(cleanFile, serverMode); }
+      catch {
         if (uploadedPaths.length) await supabase.storage.from('post-images').remove(uploadedPaths);
         setSubmitting(false);
         setError("사진 업로드에 실패했어요. 잠시 후 다시 시도해주세요.");
