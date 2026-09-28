@@ -1,5 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
-import {imageClients, imagesEnabled} from '@/lib/server/imageClients';
+import {imageClients, serverImageKeyHasValidFormat} from '@/lib/server/imageClients';
 export const runtime='nodejs';
 export const maxDuration=60;
 export async function GET(request:Request){
@@ -7,7 +7,7 @@ export async function GET(request:Request){
  const received=Buffer.from(request.headers.get('authorization')??'');
  const expected=Buffer.from(`Bearer ${secret??''}`);
  if(!secret||received.length!==expected.length||!timingSafeEqual(received,expected))return new Response(null,{status:401});
- if(!imagesEnabled())return new Response(null,{status:503});
+ if(!serverImageKeyHasValidFormat())return Response.json({error:'Invalid server credential format'},{status:503});
  const {service}=imageClients('unused');
  try{
   const {data:jobs,error,status}=await service.from('post_image_jobs').select('id,status,public_path').eq('staging_removed',false).lt('created_at',new Date(Date.now()-24*60*60_000).toISOString()).limit(100);
