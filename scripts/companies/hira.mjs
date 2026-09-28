@@ -3,6 +3,8 @@ import {XMLParser, XMLValidator} from 'fast-xml-parser';
 import {validDate} from './dart.mjs';
 
 export const HIRA_SOURCE = 'https://www.data.go.kr/data/15001698/openapi.do';
+// Publication scope chosen by the owner; keep full snapshots for identity tracking.
+export const isPublicHospital = row => (row.kindCode === '01' && row.kind === '상급종합') || (row.kindCode === '11' && row.kind === '종합병원');
 const clean = (value, max) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max && !/[\u0000-\u001f]/.test(value);
 export function parseHospitalPage(xml, expectedPage) {
  if (xml.length > 20_000_000 || /<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true) throw Error('Invalid hospital XML');

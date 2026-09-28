@@ -7,7 +7,7 @@ import {expansionRecords} from '../../scripts/companies/prepare-expansion.mjs';
 import {PGlite} from '@electric-sql/pglite';
 import {readFile} from 'node:fs/promises';
 
-const row = (n, name = '병원') => ({id: n.toString(16).padStart(64, '0'), name, kind: '병원', kindCode: '21', region: '서울', district: '강남구'});
+const row = (n, name = '병원') => ({id: n.toString(16).padStart(64, '0'), name, kind: '종합병원', kindCode: '11', region: '서울', district: '강남구'});
 const snapshot = (rows, checkedOn = '2026-09-27') => ({source: HIRA_SOURCE, checkedOn, total: rows.length, rows});
 
 test('refresh distinguishes renamed identity from same-name separate institutions', () => {

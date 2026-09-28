@@ -1,4 +1,4 @@
-export const COMPANY_TYPES = { large: '대기업', mid_sized: '중견기업', small: '중소기업', public_enterprise: '공기업', public_institution: '공공기관', medical: '병원·의원·의료기관', government: '공무원·행정기관', other: '기타 기관' } as const;
+export const COMPANY_TYPES = { large: '대기업', mid_sized: '중견기업', small: '중소기업', public_enterprise: '공기업', public_institution: '공공기관', medical: '종합병원·상급종합병원', government: '공무원·행정기관', other: '기타 기관' } as const;
 export const COMPANY_TAGS = { mid_sized_certificate: '중견기업 확인서 발급 이력', startup: '스타트업', foreign_owned: '외국계', listed: '상장기업', stock_code_registered: 'DART 종목코드 보유' } as const;
 export const COMPANY_FIELDS = 'id,slug,name,source_system,source_url,source_updated_on,checked_on,website_url';
 export const COMPANY_SELECT = `${COMPANY_FIELDS},company_classifications(dimension,value,source_url,reference_date),company_rankings(ranking_year,position,basis,publisher,source_url,reference_date)`;

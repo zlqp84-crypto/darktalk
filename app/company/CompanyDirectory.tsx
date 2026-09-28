@@ -53,7 +53,7 @@ export default function CompanyDirectory({ initialQuery = '' }: { initialQuery?:
       </div>
       <div className={styles.note}>분류와 순위는 출처가 확인된 항목만 검색됩니다. 중견기업 확인서 발급 기업은 추가 태그에서 찾을 수 있습니다. 발급 이력은 현재 중견기업 여부나 비상장 여부를 보장하지 않습니다.</div>
       <div className={styles.pager}>
-        <button type="button" className={styles.button} onClick={() => { const next = { ...initial, type: 'medical' }; setDraft(next); setFilters(next); setPage(0); }}>병원·의료기관 찾기</button>
+        <button type="button" className={styles.button} onClick={() => { const next = { ...initial, type: 'medical' }; setDraft(next); setFilters(next); setPage(0); }}>종합병원·상급종합병원 찾기</button>
         <button type="button" className={styles.button} onClick={() => { const next = { ...initial, tag: 'mid_sized_certificate' }; setDraft(next); setFilters(next); setPage(0); }}>중견기업 발급 이력 찾기</button>
       </div>
       {hasFilters && <button type="button" className={styles.button} onClick={() => { setDraft(initial); setFilters(initial); setPage(0); }}>필터 초기화</button>}

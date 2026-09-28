@@ -5,7 +5,7 @@ import {dirname, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
 import {compareHospitals} from './compare-hospitals.mjs';
-import {HIRA_SOURCE} from './hira.mjs';
+import {HIRA_SOURCE, isPublicHospital} from './hira.mjs';
 import {stableId} from './prepare-expansion.mjs';
 
 const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
@@ -26,7 +26,7 @@ export function buildHospitalRefresh(previous, current, {publishNew = false, com
   report.duplicateCandidates = duplicateCandidates;
   const selected = new Set([...report.added, ...report.changed].map(row=>row.id));
   const rows = current.rows.filter(row=>selected.has(row.id)).map(row=>({
-    source_id: row.id, id: stableId('hira:'+row.id), name: row.name, publish_new: publishNew && !withheld.has(row.id),
+    source_id: row.id, id: stableId('hira:'+row.id), name: row.name, publish_new: publishNew && isPublicHospital(row) && !withheld.has(row.id),
     old_facts: before.has(row.id) ? facts(before.get(row.id)) : null, new_facts: facts(row),
   }));
   for (const row of rows) if (row.new_facts.some(f=>f.value.length>100)) throw Error('Classification exceeds schema limit');
@@ -58,7 +58,7 @@ end $guard$;
 insert into public.companies(id,slug,name,source_system,source_id,source_url,source_updated_on,checked_on,is_published)
 select id,'hira-'||source_id,name,'hira',source_id,${quote(HIRA_SOURCE)},${quote(current.checkedOn)}::date,${quote(current.checkedOn)}::date,publish_new from hospital_refresh
 on conflict(source_system,source_id) do update set name=excluded.name, source_updated_on=excluded.source_updated_on, checked_on=excluded.checked_on;
--- Existing IDs, slugs, website URLs and publication decisions are never overwritten.
+-- Existing IDs, slugs and website URLs are preserved; private rows stay private.
 -- Remove only obsolete HIRA facts for changed institutions, not other sources.
 delete from public.company_classifications f using public.companies c,hospital_refresh r
 where f.company_id=c.id and c.source_system='hira' and c.source_id=r.source_id and f.source_url=${quote(HIRA_SOURCE)}
@@ -69,6 +69,12 @@ from hospital_refresh r join public.companies c on c.source_system='hira' and c.
 cross join lateral jsonb_to_recordset(r.new_facts) as n(dimension text,value text)
 on conflict(company_id,dimension,value) do update set reference_date=excluded.reference_date
 where company_classifications.source_url=excluded.source_url;
+-- A downgrade leaves the public directory. Never automatically republish a hidden row.
+update public.companies c set is_published=false
+where c.source_system='hira' and c.is_published and not exists (
+ select 1 from public.company_classifications f where f.company_id=c.id
+ and f.source_url=${quote(HIRA_SOURCE)} and f.dimension='industry' and f.value in ('상급종합','종합병원')
+);
 do $verify$
 begin
  if (select count(*) from public.companies where source_system='hira') <> ${previous.total+report.counts.added}
