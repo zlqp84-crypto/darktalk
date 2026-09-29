@@ -52,6 +52,8 @@
 
 `20260929010000_unreferenced_image_cleanup.sql`은 기존 job 기록을 재시도 대기열로 사용한다. 새 테이블·컬럼·RLS 정책은 추가하지 않는다. `claim_unreferenced_post_images` 실행 권한은 service_role만 가지며 일반 사용자·익명 호출은 거부한다.
 
+운영 적용(2026-09-29): 롤백 사전 검증 후 migration 적용, 커밋 `4ed7709`의 Vercel 배포 `4M8H7KMnySCg3XY2uaaUdHorsfpk`가 Ready 및 운영 도메인 연결됨을 확인했다. 운영 RPC 실행 권한은 anon=false/authenticated=false/service_role=true. 삭제 대상 0건을 읽기 전용 조회한 후 인증된 정리 API의 HTTP 200/removed=0을 확인했다. 실제 파일이 있는 대상의 정기 삭제와 재시도는 향후 실행 확인 대상이다.
+
 - 일일 정리 API가 업로드 후 24시간이 지난 ready 작업 중 어떤 게시글에서도 참조하지 않는 이미지 최대 100건을 선점한다. 게시글 삭제뿐 아니라 업로드 성공 후 게시 실패로 남은 이미지도 포함한다.
 - 사용 중인 이미지와 24시간 이내 이미지는 보존한다. job 행을 잠근 뒤 별도 SQL 문장의 최신 스냅샷에서 참조 여부를 다시 확인한다. 게시글 이미지 검증도 같은 행을 잠가 정리 선점 후 새 게시글에 붙일 수 없게 한다. READ COMMITTED 외 격리 수준에서는 정리를 거부한다.
 - 선점된 작업은 failed/staging_removed=false로 전환하여 기존 Storage API 정리 경로가 삭제한다. 파일 삭제 실패 시 다음 호출에서 재시도한다. DB에서 Storage 객체 행만 지우는 방식은 사용하지 않는다.
