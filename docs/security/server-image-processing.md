@@ -1,6 +1,16 @@
 # 서버 이미지 정제 전환 절차
 
-현재 상태(2026-09-29): 준비 migration은 운영 적용됐고 코드·일일 정리 예약은 배포됐다. CRON_SECRET 인증은 성공하지만 서버 키 형식 검증이 실패한다. 서버 모드는 false로 복원하며 키 재입력 및 실계정 업로드 검증을 기다린다. 최종 업로드 차단 SQL은 미적용이다.
+현재 상태(2026-09-29): 서버 키 검증 및 운영 이미지 정제 전환 완료. `SERVER_IMAGE_UPLOAD_ENABLED=true` 배포와 최종 업로드 차단 SQL을 적용했다. 검증 게시글과 이미지 삭제는 사용자 확인을 기다린다.
+
+## 운영 검증 결과
+
+- 커밋 `4ad0d90` push 및 운영 반영. `/api/images`는 enabled=true, 인증된 `/api/images/cleanup` 호출은 HTTP 200, removed=0.
+- 실제 로그인 세션으로 테스트 게시글 1개에 JPEG 2장, PNG·WebP·GIF 각 1장 등록 성공. 공개 파일 5개 모두 HTTP 200으로 로드됐고 EXIF/XMP/ICC/IPTC가 없었다. GIF는 2프레임 유지.
+- `post_image_jobs` 5건 모두 ready 및 staging_removed=true. 비공개 임시 객체는 0개.
+- `activate_server_image_processing.sql` 롤백 사전 검증 후 커밋 적용. 제한적 Storage INSERT/UPDATE 정책 2개 존재 확인.
+- 적용 후 운영 DB 롤백 트랜잭션에서 정상 이미지 참조와 이미지 없는 글 허용, 미정제 외부 URL 거부 확인. 운영 A/B 계정 간 공격 흐름은 재실행하지 않았다.
+- 격리 DB 권한·이미지 변환 등을 포함한 전체 보안 테스트 279개 통과. 운영 업로드에서는 기존 클라이언트 정제도 거치므로 서버 자체 EXIF 제거는 별도 변환 테스트로 검증했다.
+- Vercel Cron 활성화 및 `/api/images/cleanup` 등록 확인. UTC 18:00, 한국시간 다음 날 03:00 기준이며 Hobby 실행 시간은 1시간 범위 내 변동 가능. 예약 시각의 실제 실행 성공은 별도 로그 확인 대상이다.
 
 ## 관찰한 운영 스키마 (2026-09-28)
 
