@@ -10,6 +10,10 @@ export async function GET(request:Request){
  if(!serverImageKeyHasValidFormat())return Response.json({error:'Invalid server credential format'},{status:503});
  const {service}=imageClients('unused');
  try{
+  // Claim only aged, unreferenced processed images. Database row locks also
+  // prevent a concurrent post from attaching an image after this claim.
+  const {error:claimError}=await service.rpc('claim_unreferenced_post_images',{p_limit:100});
+  if(claimError)return Response.json({error:'Cleanup claim unavailable'},{status:500});
   const {data:jobs,error,status}=await service.from('post_image_jobs').select('id,status,public_path').eq('staging_removed',false).lt('created_at',new Date(Date.now()-24*60*60_000).toISOString()).limit(100);
   if(error){
    const message=(error.message??'').toLowerCase();

@@ -40,6 +40,7 @@ test('storage cutover enforces private staging, ownership, quotas and processed 
   await db.exec("create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);insert into storage.buckets values('post-images','post-images',true,5242880,null);");
   for(const f of ['20260917120000_p0_content_privacy_and_permissions.sql','20260917121000_p0_image_identity.sql','20260928020000_private_image_processing.sql'])await db.exec(await readFile('supabase/migrations/'+f,'utf8'));
   await db.exec(await readFile('supabase/sql/activate_server_image_processing.sql','utf8'));
+  await db.exec(await readFile('supabase/migrations/20260929010000_unreferenced_image_cleanup.sql','utf8'));
   for(const [id,name]of [[A,'a'],[B,'b']]){await db.query('insert into auth.users(id)values($1)',[id]);await db.query('insert into profiles(id,nickname)values($1,$2)',[id,name]);}
   await assert.rejects(as(null,()=>db.query('select reserve_post_image()')));
   for(const actor of [A,B])await assert.rejects(as(actor,()=>db.query('select * from post_image_jobs')));
