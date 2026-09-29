@@ -1,12 +1,13 @@
 # 서버 이미지 정제 전환 절차
 
-현재 상태(2026-09-29): 서버 키 검증 및 운영 이미지 정제 전환 완료. `SERVER_IMAGE_UPLOAD_ENABLED=true` 배포와 최종 업로드 차단 SQL을 적용했다. 검증 게시글과 이미지 삭제는 사용자 확인을 기다린다.
+현재 상태(2026-09-29): 서버 키 검증 및 운영 이미지 정제 전환 완료. `SERVER_IMAGE_UPLOAD_ENABLED=true` 배포와 최종 업로드 차단 SQL을 적용했다. 사용자 확인 후 검증 게시글 1개와 공개 이미지 5개를 삭제했으며 DB 조회로 해당 게시글·파일 및 임시 원본 모두 0개임을 확인했다. 할당량·처리 이력용 job 기록은 유지한다.
 
 ## 운영 검증 결과
 
 - 커밋 `4ad0d90` push 및 운영 반영. `/api/images`는 enabled=true, 인증된 `/api/images/cleanup` 호출은 HTTP 200, removed=0.
 - 실제 로그인 세션으로 테스트 게시글 1개에 JPEG 2장, PNG·WebP·GIF 각 1장 등록 성공. 공개 파일 5개 모두 HTTP 200으로 로드됐고 EXIF/XMP/ICC/IPTC가 없었다. GIF는 2프레임 유지.
 - `post_image_jobs` 5건 모두 ready 및 staging_removed=true. 비공개 임시 객체는 0개.
+- 테스트 정리: 관리자 화면의 JavaScript 확인창 제어가 실패해 ID·제목이 일치하는 테스트 게시글 한 건만 SQL로 삭제하고, Storage 화면에서 파일명으로 확인한 이미지 5개를 삭제했다. 이번 정리는 앱의 관리자 삭제 기능 E2E 성공으로 계산하지 않는다.
 - `activate_server_image_processing.sql` 롤백 사전 검증 후 커밋 적용. 제한적 Storage INSERT/UPDATE 정책 2개 존재 확인.
 - 적용 후 운영 DB 롤백 트랜잭션에서 정상 이미지 참조와 이미지 없는 글 허용, 미정제 외부 URL 거부 확인. 운영 A/B 계정 간 공격 흐름은 재실행하지 않았다.
 - 격리 DB 권한·이미지 변환 등을 포함한 전체 보안 테스트 279개 통과. 운영 업로드에서는 기존 클라이언트 정제도 거치므로 서버 자체 EXIF 제거는 별도 변환 테스트로 검증했다.
