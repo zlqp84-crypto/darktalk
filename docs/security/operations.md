@@ -1,5 +1,9 @@
 # 운영 점검 및 남은 연결 작업
 
+## 2026-10-03 읽기 전용 재점검
+
+`db-reconciliation-2026-10-03.md`에 운영 함수 37개·public 테이블 RLS·정책 개수 및 migration 이력 미등록 상태를 기록했다. 실제 백업·복구·이력 repair는 아직 수행하지 않았다. 아래 9월 27일 기록 중 서버 키 미설정 상태는 과거 기록이며, Vercel 서버 키 및 이미지 정제·정리 기능은 9월 29일 적용 완료했다(`server-image-processing.md`).
+
 ## 확인된 현재 상태 (2026-09-27)
 
 - Supabase 프로젝트 lvmvadjpzwqoiynoqosy의 Backups 화면에서 Free Plan does not include project backups 표시 확인. 유료 플랜을 구매하거나 변경하지 않았다.
